@@ -15,7 +15,7 @@
       surround_check_back_distance: 0.5
     car:
       enable_check: true
-      surround_check_front_distance: 0.5
+      surround_check_front_distance: 0.8 #[oussama] fine tuning for ioniq5
       surround_check_side_distance: 0.0
       surround_check_back_distance: 0.0
     truck:

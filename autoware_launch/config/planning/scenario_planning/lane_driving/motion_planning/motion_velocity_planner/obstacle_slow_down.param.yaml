@@ -39,7 +39,7 @@
             wheel_off_track_scale: 0.0 # scale factor for additional stop margin against ego's wheel off-track. Even if this value is set to 0.0, the planner considers the nominal wheel off-track.
           # car.left.moving.min_ego_velocity: 3.0  # example specific override
 
-        moving_object_speed_threshold: 0.5 # [m/s] how fast the object needs to move to be considered as "moving"
+        moving_object_speed_threshold: 1.0 # [oussama]  [m/s] how fast the object needs to move to be considered as "moving"
         moving_object_hysteresis_range: 0.1 # [m/s] hysteresis range used to prevent chattering when obstacle moves close to moving_object_speed_threshold
 
       obstacle_filtering:
@@ -52,7 +52,7 @@
           motorcycle: true
           bicycle: true
           pedestrian: true
-          pointcloud: false
+          pointcloud: false # [oussama] careful: change back to false if it starts slowing down irrationaly 
 
         # Previously and ideally, the min_lat_margin was 0.
         # However, the objects whose lateral margin is between 0 and 'wheel_off_track_scale times wheel_off_track' are ignored by the obstacle_slow_down module unexpectedly due to the current implementation.
