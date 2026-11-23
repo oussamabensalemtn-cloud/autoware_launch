@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<robot name="vehicle" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="config_dir" default="$(find ioniq5_sensor_kit_description)/config"/>
+  <xacro:property name="calib" value="${xacro.load_yaml('$(arg config_dir)/sensors_calibration.yaml')}"/>
+
+  <!-- Sensor kit root mounted to base_link -->
+  <xacro:include filename="sensor_kit.xacro"/>
+  <xacro:sensor_kit_macro
+    parent="base_link"
+    x="${calib['base_link']['sensor_kit_base_link']['x']}"
+    y="${calib['base_link']['sensor_kit_base_link']['y']}"
+    z="${calib['base_link']['sensor_kit_base_link']['z']}"
+    roll="${calib['base_link']['sensor_kit_base_link']['roll']}"
+    pitch="${calib['base_link']['sensor_kit_base_link']['pitch']}"
+    yaw="${calib['base_link']['sensor_kit_base_link']['yaw']}"
+  />
+
+  <!-- Ouster lidar frame directly on base_link -->
+  <link name="ouster_top"/>
+  <joint name="ouster_top_base_link_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="ouster_top"/>
+    <origin
+      xyz="${calib['base_link']['ouster_top']['x']} ${calib['base_link']['ouster_top']['y']} ${calib['base_link']['ouster_top']['z']}"
+      rpy="${calib['base_link']['ouster_top']['roll']} ${calib['base_link']['ouster_top']['pitch']} ${calib['base_link']['ouster_top']['yaw']}"
+    />
+  </joint>
+
+  <!-- Anvas GNSS and IMU frame directly on base_link -->
+  <link name="anvas_gnss_imu_link"/>
+  <joint name="anvas_gnss_imu_link_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="anvas_gnss_imu_link"/>
+    <origin
+      xyz="${calib['base_link']['anvas_gnss_imu_link']['x']} ${calib['base_link']['anvas_gnss_imu_link']['y']} ${calib['base_link']['anvas_gnss_imu_link']['z']}"
+      rpy="${calib['base_link']['anvas_gnss_imu_link']['roll']} ${calib['base_link']['anvas_gnss_imu_link']['pitch']} ${calib['base_link']['anvas_gnss_imu_link']['yaw']}"
+    />
+  </joint>
+
+ <!-- base_link_iso8855 for imu-->
+  <link name="base_link_iso8855"/>
+  <joint name="base_link_iso8855_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_link_iso8855"/>
+    <origin
+      xyz="${calib['base_link']['base_link_iso8855']['x']} ${calib['base_link']['base_link_iso8855']['y']} ${calib['base_link']['base_link_iso8855']['z']}"
+      rpy="${calib['base_link']['base_link_iso8855']['roll']} ${calib['base_link']['base_link_iso8855']['pitch']} ${calib['base_link']['base_link_iso8855']['yaw']}"
+    />
+  </joint>
+  
+</robot>

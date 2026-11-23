@@ -1,0 +1,35 @@
+<launch>
+  <arg name="launch_driver" default="true" description="do launch driver"/>
+  <arg name="vehicle_mirror_param_file" default="$(find-pkg-share ioniq5_sensor_kit_launch)/config/mirror.param.yaml" description="path to the file of vehicle mirror position yaml"/>
+  <arg name="pointcloud_container_name" default="pointcloud_container"/>
+  <arg name="vehicle_id" default="$(env VEHICLE_ID default)"/>
+
+  <arg name="twist_input_topic" default="/fzi/twist_with_covariance_stamped"/>
+  <arg name="twist_output_topic" default="/sensing/vehicle_velocity_converter/twist_with_covariance"/>
+
+  <group>
+    <!-- LiDAR Driver & Preprocessor Pipeline -->
+    <include file="$(find-pkg-share ioniq5_sensor_kit_launch)/launch/lidar.launch.xml">
+      <arg name="launch_driver" value="$(var launch_driver)"/>
+      <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>
+      <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>
+    </include>
+
+    <!-- Camera Driver -->
+    <include file="$(find-pkg-share ioniq5_sensor_kit_launch)/launch/camera.launch.xml">
+      <arg name="launch_driver" value="$(var launch_driver)"/>
+    </include>
+
+    <!-- GNSS and IMU Driver -->
+    <include file="$(find-pkg-share ioniq5_sensor_kit_launch)/launch/gnss.launch.xml">
+      <arg name="launch_driver" value="$(var launch_driver)"/>
+    </include>
+
+    <!-- Twist relay (replaces vehicle velocity converter for sensing) -->
+    <node pkg="topic_tools" exec="relay" name="twist_with_covariance_relay" output="screen">
+      <param name="input_topic" value="$(var twist_input_topic)"/>
+      <param name="output_topic" value="$(var twist_output_topic)"/>
+      <param name="lazy" value="false"/>
+    </node>
+  </group>
+</launch>

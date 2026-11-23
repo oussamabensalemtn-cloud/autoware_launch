@@ -1,0 +1,82 @@
+<launch>
+  <arg name="launch_driver" default="false"/>
+
+  <!-- External ANVAS topics -->
+  <arg name="navsatfix_topic_name" default="/geo"/>
+  <arg name="imu_input_topic" default="/hi5/anavs/imu"/>
+  <arg name="gnss_orientation_topic" default="/sensing/gnss/autoware_orientation"/>
+
+  <!-- GNSS poser params -->
+  <arg
+    name="gnss_poser_param_file"
+    default="$(find-pkg-share ioniq5_sensor_kit_launch)/config/gnss_poser.anvas.param.yaml"
+  />
+
+  <arg name="twist_input_topic" default="/fzi/twist_with_covariance_stamped"/>
+<arg name="velocity_report_output_topic" default="/vehicle/status/velocity_status"/>
+
+  <!-- Publish velocity report from twist for other nodes -->
+<node pkg="ioniq5_sensor_kit_launch"
+      exec="twist_to_velocity_report.py"
+      name="twist_to_velocity_report"
+      output="screen">
+  <param name="input_topic" value="$(var twist_input_topic)"/>
+  <param name="output_topic" value="$(var velocity_report_output_topic)"/>
+</node>
+
+  <!-- Publish gnss orientation from hi5/tf  -->
+<node pkg="ioniq5_sensor_kit_launch"
+      exec="tf_to_gnssinsorient_converter.py"
+      name="tf_to_gnssinsorient_converter"
+      output="screen">
+</node>
+
+  <!-- GNSS -->
+  <group>
+    <push-ros-namespace namespace="gnss"/>
+
+    <include file="$(find-pkg-share autoware_gnss_poser)/launch/gnss_poser.launch.xml">
+      <arg name="param_file" value="$(var gnss_poser_param_file)"/>
+      <arg name="input_topic_fix" value="$(var navsatfix_topic_name)"/>
+      <arg name="input_topic_orientation" value="$(var gnss_orientation_topic)"/>
+      <arg name="output_topic_gnss_pose" value="pose"/>
+      <arg name="output_topic_gnss_pose_cov" value="pose_with_covariance"/>
+      <arg name="output_topic_gnss_fixed" value="fixed"/>
+    </include>
+  </group>
+
+  <!-- IMU topic rename: /hi5/anavs/imu -> /sensing/imu/imu_data -->
+  <group>
+    <push-ros-namespace namespace="imu"/>
+
+    <node pkg="topic_tools" exec="relay" name="anavs_imu_relay" output="screen">
+      <param name="input_topic" value="$(var imu_input_topic)"/>
+      <param name="output_topic" value="imu_data"/>
+      <param name="lazy" value="false"/>
+    </node>
+    
+  </group>
+
+  <!-- Here we bypass the default estimators for twist and geo since we already have processed accurate positions -->
+
+  <group>
+  <node pkg="topic_tools" exec="relay" name="gnss_pose_to_ekf_relay" output="screen">
+    <param name="input_topic" value="/sensing/gnss/pose_with_covariance"/>
+    <param name="output_topic" value="/localization/pose_estimator/pose_with_covariance"/>
+    <param name="lazy" value="false"/>
+  </node>
+
+  <node pkg="topic_tools" exec="relay" name="fzi_twist_to_ekf_relay" output="screen">
+    <param name="input_topic" value="/fzi/twist_with_covariance_stamped"/>
+    <param name="output_topic" value="/localization/twist_estimator/twist_with_covariance"/>
+    <param name="lazy" value="false"/>
+  </node>  
+  </group>
+
+  
+
+
+</launch>
+
+
+

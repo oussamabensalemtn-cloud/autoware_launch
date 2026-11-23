@@ -1,0 +1,29 @@
+<launch>
+  <!-- Keep interface compatible with sensing.launch.xml -->
+  <arg name="launch_driver" default="false"/>
+  <arg name="pointcloud_container_name" default="pointcloud_container"/>
+  <arg name="vehicle_mirror_param_file" default="$(find-pkg-share ioniq5_sensor_kit_launch)/config/mirror.param.yaml"/>
+  <arg name="ouster_input_topic" default="/ouster/points"/>
+  <arg name="ouster_output_topic" default="/sensing/lidar/ouster_converted"/>
+
+  <node pkg="ioniq5_sensor_kit_launch"
+      exec="ouster_format_converter.py"
+      name="ouster_format_converter"
+      output="screen">
+  <remap from="input" to="$(var ouster_input_topic)"/>
+  <remap from="output" to="$(var ouster_output_topic)"/>
+</node>
+
+  <group>
+    <push-ros-namespace namespace="lidar"/>
+
+    <!-- Ouster single-LiDAR preprocessing pipeline -->
+    <include file="$(find-pkg-share ioniq5_sensor_kit_launch)/launch/ouster_node_container.py">
+      <arg name="base_frame" value="base_link"/>
+      <arg name="use_intra_process" value="true"/>
+      <arg name="use_multithread" value="true"/>
+      <arg name="pointcloud_container_name" value="$(var pointcloud_container_name)"/>
+      <arg name="vehicle_mirror_param_file" value="$(var vehicle_mirror_param_file)"/>
+    </include>
+  </group>
+</launch>

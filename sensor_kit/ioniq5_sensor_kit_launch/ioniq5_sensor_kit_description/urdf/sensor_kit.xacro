@@ -1,0 +1,138 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="sensor_kit_macro" params="parent x y z roll pitch yaw">
+    <xacro:include filename="$(find ioniq5_sensor_kit_description)/sensor/camera/urdf/monocular_camera.xacro"/>
+    <xacro:include filename="$(find ioniq5_sensor_kit_description)/sensor/imu/urdf/imu.xacro"/>
+
+    <xacro:arg name="config_dir" default="$(find ioniq5_sensor_kit_description)/config"/>
+
+    <xacro:property name="sensor_kit_base_link" value="sensor_kit_base_link"/>
+    <xacro:property name="calibration" value="${xacro.load_yaml('$(arg config_dir)/sensor_kit_calibration.yaml')}"/>
+
+    <joint name="${sensor_kit_base_link}_joint" type="fixed">
+      <origin rpy="${roll} ${pitch} ${yaw}" xyz="${x} ${y} ${z}"/>
+      <parent link="${parent}"/>
+      <child link="${sensor_kit_base_link}"/>
+    </joint>
+
+    <link name="${sensor_kit_base_link}">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </link>
+
+
+    <xacro:monocular_camera_macro
+      name="camera_fl"
+      parent="sensor_kit_base_link"
+      namespace=""
+      x="${calibration['sensor_kit_base_link']['camera_fl']['x']}"
+      y="${calibration['sensor_kit_base_link']['camera_fl']['y']}"
+      z="${calibration['sensor_kit_base_link']['camera_fl']['z']}"
+      roll="${calibration['sensor_kit_base_link']['camera_fl']['roll']}"
+      pitch="${calibration['sensor_kit_base_link']['camera_fl']['pitch']}"
+      yaw="${calibration['sensor_kit_base_link']['camera_fl']['yaw']}"
+      fps="30"
+      width="1920"
+      height="1080"
+      fov="1.5706963267948966"
+    />
+
+    <xacro:monocular_camera_macro
+      name="camera_fr"
+      parent="sensor_kit_base_link"
+      namespace=""
+      x="${calibration['sensor_kit_base_link']['camera_fr']['x']}"
+      y="${calibration['sensor_kit_base_link']['camera_fr']['y']}"
+      z="${calibration['sensor_kit_base_link']['camera_fr']['z']}"
+      roll="${calibration['sensor_kit_base_link']['camera_fr']['roll']}"
+      pitch="${calibration['sensor_kit_base_link']['camera_fr']['pitch']}"
+      yaw="${calibration['sensor_kit_base_link']['camera_fr']['yaw']}"
+      fps="30"
+      width="1920"
+      height="1080"
+      fov="1.5706963267948966"
+    />
+
+    <xacro:monocular_camera_macro
+      name="camera_b"
+      parent="sensor_kit_base_link"
+      namespace=""
+      x="${calibration['sensor_kit_base_link']['camera_b']['x']}"
+      y="${calibration['sensor_kit_base_link']['camera_b']['y']}"
+      z="${calibration['sensor_kit_base_link']['camera_b']['z']}"
+      roll="${calibration['sensor_kit_base_link']['camera_b']['roll']}"
+      pitch="${calibration['sensor_kit_base_link']['camera_b']['pitch']}"
+      yaw="${calibration['sensor_kit_base_link']['camera_b']['yaw']}"
+      fps="30"
+      width="1920"
+      height="1080"
+      fov="1.5706963267948966"
+    />
+
+    <xacro:monocular_camera_macro
+      name="camera_bl"
+      parent="sensor_kit_base_link"
+      namespace=""
+      x="${calibration['sensor_kit_base_link']['camera_bl']['x']}"
+      y="${calibration['sensor_kit_base_link']['camera_bl']['y']}"
+      z="${calibration['sensor_kit_base_link']['camera_bl']['z']}"
+      roll="${calibration['sensor_kit_base_link']['camera_bl']['roll']}"
+      pitch="${calibration['sensor_kit_base_link']['camera_bl']['pitch']}"
+      yaw="${calibration['sensor_kit_base_link']['camera_bl']['yaw']}"
+      fps="30"
+      width="1920"
+      height="1080"
+      fov="1.5706963267948966"
+    />
+
+    <xacro:monocular_camera_macro
+      name="camera_br"
+      parent="sensor_kit_base_link"
+      namespace=""
+      x="${calibration['sensor_kit_base_link']['camera_br']['x']}"
+      y="${calibration['sensor_kit_base_link']['camera_br']['y']}"
+      z="${calibration['sensor_kit_base_link']['camera_br']['z']}"
+      roll="${calibration['sensor_kit_base_link']['camera_br']['roll']}"
+      pitch="${calibration['sensor_kit_base_link']['camera_br']['pitch']}"
+      yaw="${calibration['sensor_kit_base_link']['camera_br']['yaw']}"
+      fps="30"
+      width="1920"
+      height="1080"
+      fov="1.5706963267948966"
+    />
+
+    <xacro:monocular_camera_macro
+      name="camera_fz"
+      parent="sensor_kit_base_link"
+      namespace=""
+      x="${calibration['sensor_kit_base_link']['camera_fz']['x']}"
+      y="${calibration['sensor_kit_base_link']['camera_fz']['y']}"
+      z="${calibration['sensor_kit_base_link']['camera_fz']['z']}"
+      roll="${calibration['sensor_kit_base_link']['camera_fz']['roll']}"
+      pitch="${calibration['sensor_kit_base_link']['camera_fz']['pitch']}"
+      yaw="${calibration['sensor_kit_base_link']['camera_fz']['yaw']}"
+      fps="30"
+      width="1920"
+      height="1080"
+      fov="0.930373443947894"
+    />
+
+
+    <xacro:monocular_camera_macro
+      name="camera_f"
+      parent="sensor_kit_base_link"
+      namespace=""
+      x="${calibration['sensor_kit_base_link']['camera_f']['x']}"
+      y="${calibration['sensor_kit_base_link']['camera_f']['y']}"
+      z="${calibration['sensor_kit_base_link']['camera_f']['z']}"
+      roll="${calibration['sensor_kit_base_link']['camera_f']['roll']}"
+      pitch="${calibration['sensor_kit_base_link']['camera_f']['pitch']}"
+      yaw="${calibration['sensor_kit_base_link']['camera_f']['yaw']}"
+      fps="30"
+      width="1920"
+      height="1080"
+      fov="1.5706963267948966"
+    />
+
+  </xacro:macro>
+
+</robot>

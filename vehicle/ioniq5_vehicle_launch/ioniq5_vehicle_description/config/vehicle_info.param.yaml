@@ -1,0 +1,12 @@
+/**:
+  ros__parameters:
+    wheel_radius: 0.36 # From r_dyn_m (0.36m)
+    wheel_width: 0.255 
+    wheel_base: 3.00 # From wheelbase_m (3.00m)
+    wheel_tread: 1.6425 # Averaged from front (1.638m) and rear (1.647m) track width
+    front_overhang: 0.845 
+    rear_overhang: 0.790 
+    left_overhang: 0.145 
+    right_overhang: 0.145
+    vehicle_height: 1.605 
+    max_steer_angle: 0.615 # From max_steering_angle (0.615 rad)
