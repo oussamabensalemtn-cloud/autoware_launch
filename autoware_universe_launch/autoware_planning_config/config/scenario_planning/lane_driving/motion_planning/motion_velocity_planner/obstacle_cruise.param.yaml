@@ -76,7 +76,7 @@
       obstacle_filtering:
         object_type:
           inside:
-            unknown: true
+            unknown: false
             car: true
             truck: true
             bus: true

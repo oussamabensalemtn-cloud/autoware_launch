@@ -1,0 +1,32 @@
+base_link:
+  sensor_kit_base_link:
+    x: 1.933049806
+    y: -0.021383737
+    z: 1.959980402
+    roll: -1.577127
+    pitch: -0.001704
+    yaw: -1.590861
+
+  ouster_top:
+    x: 1.92096
+    y: 0.1425
+    z: 1.57683
+    roll: 0.0
+    pitch: 0.0
+    yaw: 3.14159
+
+  anvas_gnss_imu_link:
+    x: 0.0
+    y: 0.0
+    z: 1.4144
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+
+  base_link_iso8855:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0

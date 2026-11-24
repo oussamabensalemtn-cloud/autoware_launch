@@ -50,24 +50,13 @@ units:
   - path: /autoware/modes/pull_over
     type: and
     list:
-      - { type: link, link: /autoware/map }
       - { type: link, link: /autoware/localization }
-      - { type: link, link: /autoware/planning }
-      - { type: link, link: /autoware/perception }
-      - { type: link, link: /autoware/control }
-      - { type: link, link: /autoware/vehicle }
-      - { type: link, link: /autoware/system }
+
 
   - path: /autoware/modes/comfortable_stop
     type: and
     list:
       - { type: link, link: /autoware/map }
-      - { type: link, link: /autoware/localization }
-      - { type: link, link: /autoware/planning }
-      - { type: link, link: /autoware/perception }
-      - { type: link, link: /autoware/control }
-      - { type: link, link: /autoware/vehicle }
-      - { type: link, link: /autoware/system }
 
   - path: /autoware/modes/emergency_stop
     type: and

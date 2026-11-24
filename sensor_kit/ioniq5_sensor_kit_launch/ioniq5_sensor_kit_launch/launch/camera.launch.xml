@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <arg name="launch_driver" default="false"/>
+
+  <!-- External camera image topics (already undistorted) -->
+  <arg name="image_raw0" default="/sensor/camera_fl/undistorted/image"/>
+  <arg name="image_raw1" default="/sensor/camera_fr/undistorted/image"/>
+  <arg name="image_raw2" default="/sensor/camera_b/undistorted/image"/>
+  <arg name="image_raw3" default="/sensor/camera_bl/undistorted/image"/>
+  <arg name="image_raw4" default="/sensor/camera_br/undistorted/image"/>
+  <arg name="image_raw5" default="/sensor/camera_fz/undistorted/image"/>
+  <arg name="image_raw6" default="/sensor/camera_f/undistorted/image"/>
+
+  <!-- External camera_info topics -->
+  <arg name="camera_info0" default="/sensor/camera_fl/undistorted/camera_info"/>
+  <arg name="camera_info1" default="/sensor/camera_fr/undistorted/camera_info"/>
+  <arg name="camera_info2" default="/sensor/camera_b/undistorted/camera_info"/>
+  <arg name="camera_info3" default="/sensor/camera_bl/undistorted/camera_info"/>
+  <arg name="camera_info4" default="/sensor/camera_br/undistorted/camera_info"/>
+  <arg name="camera_info5" default="/sensor/camera_fz/undistorted/camera_info"/>
+  <arg name="camera_info6" default="/sensor/camera_f/undistorted/camera_info"/>
+
+  <group>
+    <push-ros-namespace namespace="camera"/>
+
+    <!-- ===============================================================
+         ACTIVE: All Camera Topic Relays (0 to 6)
+         =============================================================== -->
+    <node pkg="topic_tools" exec="relay" name="relay_camera0_image" output="screen">
+      <param name="input_topic" value="$(var image_raw0)"/>
+      <param name="output_topic" value="/sensing/camera/camera0/image_rect_color"/>
+      <param name="lazy" value="false"/>
+    </node>
+    <node pkg="ioniq5_sensor_kit_launch" exec="camera_info_converter.py" name="relay_camera0_info" output="screen">
+      <param name="input_topic" value="$(var camera_info0)"/>
+      <param name="output_topic" value="/sensing/camera/camera0/camera_info"/>
+    </node>
+
+    <node pkg="topic_tools" exec="relay" name="relay_camera1_image" output="screen">
+      <param name="input_topic" value="$(var image_raw1)"/>
+      <param name="output_topic" value="/sensing/camera/camera1/image_rect_color"/>
+      <param name="lazy" value="false"/>
+    </node>
+    <node pkg="ioniq5_sensor_kit_launch" exec="camera_info_converter.py" name="relay_camera1_info" output="screen">
+      <param name="input_topic" value="$(var camera_info1)"/>
+      <param name="output_topic" value="/sensing/camera/camera1/camera_info"/>
+    </node>
+
+    <node pkg="topic_tools" exec="relay" name="relay_camera2_image" output="screen">
+      <param name="input_topic" value="$(var image_raw2)"/>
+      <param name="output_topic" value="/sensing/camera/camera2/image_rect_color"/>
+      <param name="lazy" value="false"/>
+    </node>
+    <node pkg="ioniq5_sensor_kit_launch" exec="camera_info_converter.py" name="relay_camera2_info" output="screen">
+      <param name="input_topic" value="$(var camera_info2)"/>
+      <param name="output_topic" value="/sensing/camera/camera2/camera_info"/>
+    </node>
+
+    <node pkg="topic_tools" exec="relay" name="relay_camera3_image" output="screen">
+      <param name="input_topic" value="$(var image_raw3)"/>
+      <param name="output_topic" value="/sensing/camera/camera3/image_rect_color"/>
+      <param name="lazy" value="false"/>
+    </node>
+    <node pkg="ioniq5_sensor_kit_launch" exec="camera_info_converter.py" name="relay_camera3_info" output="screen">
+      <param name="input_topic" value="$(var camera_info3)"/>
+      <param name="output_topic" value="/sensing/camera/camera3/camera_info"/>
+    </node>
+
+    <node pkg="topic_tools" exec="relay" name="relay_camera4_image" output="screen">
+      <param name="input_topic" value="$(var image_raw4)"/>
+      <param name="output_topic" value="/sensing/camera/camera4/image_rect_color"/>
+      <param name="lazy" value="false"/>
+    </node>
+    <node pkg="ioniq5_sensor_kit_launch" exec="camera_info_converter.py" name="relay_camera4_info" output="screen">
+      <param name="input_topic" value="$(var camera_info4)"/>
+      <param name="output_topic" value="/sensing/camera/camera4/camera_info"/>
+    </node>
+
+    <node pkg="topic_tools" exec="relay" name="relay_camera5_image" output="screen">
+      <param name="input_topic" value="$(var image_raw5)"/>
+      <param name="output_topic" value="/sensing/camera/camera5/image_rect_color"/>
+      <param name="lazy" value="false"/>
+    </node>
+    <node pkg="ioniq5_sensor_kit_launch" exec="camera_info_converter.py" name="relay_camera5_info" output="screen">
+      <param name="input_topic" value="$(var camera_info5)"/>
+      <param name="output_topic" value="/sensing/camera/camera5/camera_info"/>
+    </node>
+
+    <node pkg="topic_tools" exec="relay" name="relay_camera6_image" output="screen">
+      <param name="input_topic" value="$(var image_raw6)"/>
+      <param name="output_topic" value="/sensing/camera/camera6/image_rect_color"/>
+      <param name="lazy" value="false"/>
+    </node>
+    <node pkg="ioniq5_sensor_kit_launch" exec="camera_info_converter.py" name="relay_camera6_info" output="screen">
+      <param name="input_topic" value="$(var camera_info6)"/>
+      <param name="output_topic" value="/sensing/camera/camera6/camera_info"/>
+    </node>
+
+    <!-- ===============================================================
+         ACTIVE: YOLOX for Camera 6 (camera_f) ONLY
+         =============================================================== -->
+    <include file="$(find-pkg-share autoware_tensorrt_yolox)/launch/yolox.launch.xml">
+      <arg name="yolox_node_name" value="tensorrt_yolox6"/>
+      <arg name="image_transport_decompressor_node_name" value="image_transport_decompressor_node6"/>
+      <arg name="input/image" value="$(var image_raw6)"/>
+      <arg name="output/objects" value="/perception/object_recognition/detection/rois6"/>
+      <arg name="output/mask" value="/perception/object_recognition/detection/mask6"/>
+      <arg name="use_decompress" value="false"/>
+    </include>
+
+    <!-- ===============================================================
+         DISABLED: YOLOX for Cameras 0 through 5
+         =============================================================== -->
+    <!--
+    <include file="$(find-pkg-share autoware_tensorrt_yolox)/launch/yolox.launch.xml">
+      <arg name="yolox_node_name" value="tensorrt_yolox0"/>
+      <arg name="image_transport_decompressor_node_name" value="image_transport_decompressor_node0"/>
+      <arg name="input/image" value="$(var image_raw0)"/>
+      <arg name="output/objects" value="/perception/object_recognition/detection/rois0"/>
+      <arg name="output/mask" value="/perception/object_recognition/detection/mask0"/>
+      <arg name="use_decompress" value="false"/>
+    </include>
+
+    <include file="$(find-pkg-share autoware_tensorrt_yolox)/launch/yolox.launch.xml">
+      <arg name="yolox_node_name" value="tensorrt_yolox1"/>
+      <arg name="image_transport_decompressor_node_name" value="image_transport_decompressor_node1"/>
+      <arg name="input/image" value="$(var image_raw1)"/>
+      <arg name="output/objects" value="/perception/object_recognition/detection/rois1"/>
+      <arg name="output/mask" value="/perception/object_recognition/detection/mask1"/>
+      <arg name="use_decompress" value="false"/>
+    </include>
+
+    <include file="$(find-pkg-share autoware_tensorrt_yolox)/launch/yolox.launch.xml">
+      <arg name="yolox_node_name" value="tensorrt_yolox2"/>
+      <arg name="image_transport_decompressor_node_name" value="image_transport_decompressor_node2"/>
+      <arg name="input/image" value="$(var image_raw2)"/>
+      <arg name="output/objects" value="/perception/object_recognition/detection/rois2"/>
+      <arg name="output/mask" value="/perception/object_recognition/detection/mask2"/>
+      <arg name="use_decompress" value="false"/>
+    </include>
+
+    <include file="$(find-pkg-share autoware_tensorrt_yolox)/launch/yolox.launch.xml">
+      <arg name="yolox_node_name" value="tensorrt_yolox3"/>
+      <arg name="image_transport_decompressor_node_name" value="image_transport_decompressor_node3"/>
+      <arg name="input/image" value="$(var image_raw3)"/>
+      <arg name="output/objects" value="/perception/object_recognition/detection/rois3"/>
+      <arg name="output/mask" value="/perception/object_recognition/detection/mask3"/>
+      <arg name="use_decompress" value="false"/>
+    </include>
+
+    <include file="$(find-pkg-share autoware_tensorrt_yolox)/launch/yolox.launch.xml">
+      <arg name="yolox_node_name" value="tensorrt_yolox4"/>
+      <arg name="image_transport_decompressor_node_name" value="image_transport_decompressor_node4"/>
+      <arg name="input/image" value="$(var image_raw4)"/>
+      <arg name="output/objects" value="/perception/object_recognition/detection/rois4"/>
+      <arg name="output/mask" value="/perception/object_recognition/detection/mask4"/>
+      <arg name="use_decompress" value="false"/>
+    </include>
+
+    <include file="$(find-pkg-share autoware_tensorrt_yolox)/launch/yolox.launch.xml">
+      <arg name="yolox_node_name" value="tensorrt_yolox5"/>
+      <arg name="image_transport_decompressor_node_name" value="image_transport_decompressor_node5"/>
+      <arg name="input/image" value="$(var image_raw5)"/>
+      <arg name="output/objects" value="/perception/object_recognition/detection/rois5"/>
+      <arg name="output/mask" value="/perception/object_recognition/detection/mask5"/>
+      <arg name="use_decompress" value="false"/>
+    </include>
+    -->
+  </group>
+</launch>

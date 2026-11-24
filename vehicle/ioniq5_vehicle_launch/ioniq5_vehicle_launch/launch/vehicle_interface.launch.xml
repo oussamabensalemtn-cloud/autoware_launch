@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <arg name="vehicle_id" default="$(env VEHICLE_ID default)"/>
+
+  <node pkg="ioniq5_vehicle_launch" exec="vehicle_status_publisher.py" name="vehicle_status_publisher" output="screen"/>
+
+  <!-- Autoware trajectory -> smoothed trajectory (t, x, y, yaw, v, a, s, kappa) -->
+  <node pkg="ioniq5_vehicle_launch" exec="autobox_trajectory_bridge.py" name="autobox_trajectory_bridge" output="screen">
+    <param name="input_topic" value="/planning/trajectory"/>
+    <param name="output_topic" value="/HI5/autoware_controller_trajectory"/>
+    <param name="resample_ds" value="0.2"/>
+    <param name="smoothing_length_m" value="8.0"/>
+    <param name="max_deviation_m" value="0.10"/>
+  </node>
+
+    <!-- smoothed trajectory -> 31-point UDP packet (format version 2) for the Autobox -->
+  <node pkg="ioniq5_vehicle_launch" exec="autobox_udp_sender.py" name="autobox_udp_sender" output="screen">
+    <param name="input_topic" value="/HI5/autoware_controller_trajectory"/>
+    <param name="autobox_ip" value="10.0.10.20"/>
+    <param name="autobox_port" value="44444"/>
+    <param name="local_port" value="0"/>
+    <param name="n_behind" value="6"/>
+    <param name="behind_spacing_m" value="0.5"/>
+    <param name="min_spacing_m" value="0.3"/>
+    <param name="max_spacing_m" value="3.0"/>
+    <param name="min_horizon" value="3.0"/>
+  </node>
+</launch>
