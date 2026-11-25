@@ -11,6 +11,7 @@
   <arg name="planning_setting" default="rule_based" description="planning setting diffusion_planner / rule_based"/>
   <arg name="planning_module_preset" default="default" description="planning module preset"/>
   <arg name="control_module_preset" default="default" description="control module preset"/>
+  <arg name="control_input_trajectory_topic_name" default="/planning/trajectory" description="trajectory topic consumed by control"/>
 
   <!-- Optional parameters -->
   <!-- Modules to be launched -->
@@ -139,6 +140,7 @@
   <group if="$(var launch_control)">
     <include file="$(find-pkg-share autoware_launch)/launch/components/component_control.launch.xml">
       <arg name="module_preset" value="$(var control_module_preset)"/>
+      <arg name="control_input_trajectory_topic_name" value="$(var control_input_trajectory_topic_name)"/>
       <arg name="check_external_emergency_heartbeat" value="$(var check_external_emergency_heartbeat)"/>
       <arg name="use_sim_time" value="$(var use_sim_time)"/>
       <arg name="vehicle_model" value="$(var vehicle_model)"/>

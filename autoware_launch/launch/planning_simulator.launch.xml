@@ -9,6 +9,7 @@
   <!-- launch module preset -->
   <arg name="planning_module_preset" default="default" description="planning module preset"/>
   <arg name="control_module_preset" default="default" description="control module preset"/>
+  <arg name="control_input_trajectory_topic_name" default="/planning/trajectory" description="trajectory topic consumed by control"/>
 
   <!-- Optional parameters -->
   <!-- Map -->
@@ -68,6 +69,7 @@
       <!-- launch module preset -->
       <arg name="planning_module_preset" value="$(var planning_module_preset)"/>
       <arg name="control_module_preset" value="$(var control_module_preset)"/>
+      <arg name="control_input_trajectory_topic_name" value="$(var control_input_trajectory_topic_name)"/>
       <!-- Modules to be launched -->
       <arg name="launch_sensing" value="false"/>
       <arg name="launch_localization" value="false"/>
