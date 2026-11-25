@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
   <arg name="vehicle_id" default="$(env VEHICLE_ID default)"/>
+  <!-- trajectory that is sent to the Autobox (the MRM stack sets this to /mrm/trajectory) -->
+  <arg name="trajectory_input_topic" default="/planning/trajectory"/>
 
   <node pkg="ioniq5_vehicle_launch" exec="vehicle_status_publisher.py" name="vehicle_status_publisher" output="screen"/>
 
   <!-- Autoware trajectory -> smoothed trajectory (t, x, y, yaw, v, a, s, kappa) -->
   <node pkg="ioniq5_vehicle_launch" exec="autobox_trajectory_bridge.py" name="autobox_trajectory_bridge" output="screen">
-    <param name="input_topic" value="/planning/trajectory"/>
+    <param name="input_topic" value="$(var trajectory_input_topic)"/>
     <param name="output_topic" value="/HI5/autoware_controller_trajectory"/>
     <param name="resample_ds" value="0.2"/>
     <param name="smoothing_length_m" value="8.0"/>
