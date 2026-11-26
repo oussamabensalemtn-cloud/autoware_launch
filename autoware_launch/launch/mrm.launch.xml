@@ -14,6 +14,7 @@
        - refuses to start in the nominal system's ROS domain (its /planning, /control, ... topics would collide). -->
 <launch>
   <arg name="map_path" description="Autoware map directory (lanelet2_map.osm + map_projector_info.yaml)"/>
+  <arg name="vehicle_model" default="sample_vehicle" description="vehicle model name (as in autoware.launch.xml)"/>
   <arg name="trigger_port" default="45000" description="UDP port for the MRM trigger from the MicroAutoBox"/>
   <arg name="nominal_domain" default="0" description="ROS_DOMAIN_ID of the nominal AD system"/>
 
@@ -30,6 +31,7 @@
 
     <include file="$(find-pkg-share mrm_launch)/launch/mrm_core.launch.xml">
       <arg name="map_path" value="$(var map_path)"/>
+      <arg name="vehicle_model" value="$(var vehicle_model)"/>
     </include>
 
     <node pkg="mrm_trigger_udp" exec="trigger_udp_receiver" name="mrm_trigger_udp_receiver" output="screen">
