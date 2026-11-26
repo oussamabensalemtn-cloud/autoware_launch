@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- MRM stack on the real vehicle, in hot standby next to the nominal AD system.
+     Same arguments as autoware.launch.xml (they pass through), e.g. on the Ioniq 5:
+
+       ROS_DOMAIN_ID=101 ros2 launch autoware_launch mrm.launch.xml map_path:=<map dir> \
+         vehicle_model:=ioniq5_vehicle sensor_model:=ioniq5_sensor_kit vehicle_id:=ioniq5 \
+         pose_source:=anavs twist_source:=anavs lateral_controller_mode:=pure_pursuit pose_initializer_stop_check:=false
+
+     Differences from autoware.launch.xml:
+       - MRM core (mrm_launch/mrm_core.launch.xml): route along the current lane, stop trajectory /mrm/trajectory,
+       - the vehicle interface sends /mrm/trajectory to the MicroAutoBox instead of /planning/trajectory,
+       - the behavior modules (avoidance, lane change) run without approval (nobody approves in standby),
+       - the MRM trigger comes from the MicroAutoBox over UDP,
+       - refuses to start in the nominal system's ROS domain (its /planning, /control, ... topics would collide). -->
+<launch>
+  <arg name="map_path" description="Autoware map directory (lanelet2_map.osm + map_projector_info.yaml)"/>
+  <arg name="trigger_port" default="45000" description="UDP port for the MRM trigger from the MicroAutoBox"/>
+  <arg name="nominal_domain" default="0" description="ROS_DOMAIN_ID of the nominal AD system"/>
+
+  <let name="mrm_domain" value="$(env ROS_DOMAIN_ID 0)"/>
+  <let name="in_nominal_domain" value="$(eval '&quot;$(var mrm_domain)&quot; == &quot;$(var nominal_domain)&quot;')"/>
+  <group if="$(var in_nominal_domain)">
+    <log message="ROS_DOMAIN_ID=$(var mrm_domain) is the nominal domain. Start the MRM stack in its own domain, e.g. ROS_DOMAIN_ID=101."/>
+    <shutdown reason="MRM stack must not run in the nominal ROS domain"/>
+  </group>
+
+  <group unless="$(var in_nominal_domain)">
+    <!-- read by the vehicle interface (ioniq5_vehicle_launch/vehicle_interface.launch.xml) -->
+    <let name="trajectory_input_topic" value="/mrm/trajectory"/>
+
+    <include file="$(find-pkg-share mrm_launch)/launch/mrm_core.launch.xml">
+      <arg name="map_path" value="$(var map_path)"/>
+    </include>
+
+    <node pkg="mrm_trigger_udp" exec="trigger_udp_receiver" name="mrm_trigger_udp_receiver" output="screen">
+      <param name="port" value="$(var trigger_port)"/>
+    </node>
+
+    <include file="$(find-pkg-share autoware_launch)/launch/autoware.launch.xml">
+      <arg name="map_path" value="$(var map_path)"/>
+      <arg name="enable_all_modules_auto_mode" value="true"/>
+    </include>
+  </group>
+</launch>
