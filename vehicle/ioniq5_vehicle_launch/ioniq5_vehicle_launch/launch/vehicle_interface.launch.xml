@@ -3,6 +3,8 @@
   <arg name="vehicle_id" default="$(env VEHICLE_ID default)"/>
   <!-- trajectory that is sent to the Autobox (the MRM stack sets this to /mrm/trajectory) -->
   <arg name="trajectory_input_topic" default="/planning/trajectory"/>
+  <!-- UDP target of the trajectory packets (127.0.0.1 = dry run, nothing reaches the Autobox) -->
+  <arg name="autobox_ip" default="10.0.10.20"/>
 
   <node pkg="ioniq5_vehicle_launch" exec="vehicle_status_publisher.py" name="vehicle_status_publisher" output="screen"/>
 
@@ -18,7 +20,7 @@
     <!-- smoothed trajectory -> 31-point UDP packet (format version 2) for the Autobox -->
   <node pkg="ioniq5_vehicle_launch" exec="autobox_udp_sender.py" name="autobox_udp_sender" output="screen">
     <param name="input_topic" value="/HI5/autoware_controller_trajectory"/>
-    <param name="autobox_ip" value="10.0.10.20"/>
+    <param name="autobox_ip" value="$(var autobox_ip)"/>
     <param name="autobox_port" value="44444"/>
     <param name="local_port" value="0"/>
     <param name="n_behind" value="6"/>
