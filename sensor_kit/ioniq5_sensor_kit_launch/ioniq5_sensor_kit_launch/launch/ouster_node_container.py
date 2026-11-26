@@ -143,7 +143,8 @@ def launch_setup(context, *args, **kwargs):
 
 
 def generate_launch_description():
-    common_sensor_share_dir = get_package_share_directory("common_sensor_launch")
+    # common_sensor_launch was removed upstream (#1938), its param files moved to autoware_sensing_launch
+    common_sensor_share_dir = get_package_share_directory("autoware_sensing_launch")
 
     launch_arguments = [
         DeclareLaunchArgument("base_frame", default_value="base_link"),
