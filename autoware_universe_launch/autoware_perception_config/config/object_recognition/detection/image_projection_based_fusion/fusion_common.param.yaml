@@ -17,7 +17,7 @@
     # msg3d's header timestamp: 0.000
     # rois's header timestamp (camera 0-5):  0.059, 0.010, 0.026, 0.042, 0.076, 0.093
     # offset = rois_timestamp- msg3d_timestamp
-    rois_timestamp_offsets: [0.098, 0.147, 0.078, 0.062, 0.115, 0.132] # {OVERRIDE}
+    rois_timestamp_offsets: [-0.01, 0.147, 0.078, 0.062, 0.115, 0.132] # {OVERRIDE: Ioniq 5 fuses only camera_f (as camera 0); its ROIs are stamped 0.009-0.010 s before the Ouster scan (measured on the car)}
     rois_timeout_sec: 0.5
     msg3d_timeout_sec: 0.05
     image_buffer_size: 15

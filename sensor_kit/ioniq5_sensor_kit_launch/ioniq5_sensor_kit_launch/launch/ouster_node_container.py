@@ -101,7 +101,38 @@ def launch_setup(context, *args, **kwargs):
         )
     )
 
-    # 3. Distortion Corrector (Deskewing using Vehicle Twist & IMU)
+    # 3. Above-vehicle crop box. The Ouster returns floating points 1.5-2.4 m high over the hood, up to 0.3 m beyond
+    #    the body (sensor rig / reflections). CenterPoint turned them into a pedestrian on the hood, which blocked the
+    #    start (surround_obstacle_checker). This box only covers the band above the car, so real obstacles next to
+    #    the car keep their lower points.
+    above_cropbox_parameters = create_parameter_dict("input_frame", "output_frame")
+    above_cropbox_parameters["negative"] = True
+    above_cropbox_parameters["processing_time_threshold_sec"] = 0.1
+    lateral_margin = float(LaunchConfiguration("above_vehicle_crop_box_lateral_margin").perform(context))
+    above_cropbox_parameters.update({
+        "min_x": vehicle_info["min_longitudinal_offset"],
+        "max_x": vehicle_info["max_longitudinal_offset"],
+        "min_y": vehicle_info["min_lateral_offset"] - lateral_margin,
+        "max_y": vehicle_info["max_lateral_offset"] + lateral_margin,
+        "min_z": float(LaunchConfiguration("above_vehicle_crop_box_min_z").perform(context)),
+        "max_z": float(LaunchConfiguration("above_vehicle_crop_box_max_z").perform(context)),
+    })
+
+    nodes.append(
+        ComposableNode(
+            package="autoware_pointcloud_preprocessor",
+            plugin="autoware::pointcloud_preprocessor::CropBoxFilterComponent",
+            name="crop_box_filter_above_vehicle",
+            remappings=[
+                ("input", "mirror_cropped/pointcloud"),
+                ("output", "above_vehicle_cropped/pointcloud"),
+            ],
+            parameters=[above_cropbox_parameters],
+            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+        )
+    )
+
+    # 4. Distortion Corrector (Deskewing using Vehicle Twist & IMU)
     nodes.append(
         ComposableNode(
             package="autoware_pointcloud_preprocessor",
@@ -110,7 +141,7 @@ def launch_setup(context, *args, **kwargs):
             remappings=[
                 ("~/input/twist", "/sensing/vehicle_velocity_converter/twist_with_covariance"),
                 ("~/input/imu", "/sensing/imu/imu_data"),
-                ("~/input/pointcloud", "mirror_cropped/pointcloud"),
+                ("~/input/pointcloud", "above_vehicle_cropped/pointcloud"),
                 ("~/output/pointcloud", "rectified/pointcloud"),
             ],
             parameters=[distortion_corrector_node_param],
@@ -118,7 +149,7 @@ def launch_setup(context, *args, **kwargs):
         )
     )
 
-    # 4. Ring Outlier Filter (Outputs directly to /sensing/lidar/concatenated/pointcloud)
+    # 5. Ring Outlier Filter (Outputs directly to /sensing/lidar/concatenated/pointcloud)
     nodes.append(
         ComposableNode(
             package="autoware_pointcloud_preprocessor",
@@ -143,7 +174,8 @@ def launch_setup(context, *args, **kwargs):
 
 
 def generate_launch_description():
-    common_sensor_share_dir = get_package_share_directory("common_sensor_launch")
+    # common_sensor_launch was removed upstream (#1938), its param files moved to autoware_sensing_launch
+    common_sensor_share_dir = get_package_share_directory("autoware_sensing_launch")
 
     launch_arguments = [
         DeclareLaunchArgument("base_frame", default_value="base_link"),
@@ -153,6 +185,9 @@ def generate_launch_description():
         DeclareLaunchArgument("use_intra_process", default_value="False"),
         DeclareLaunchArgument("pointcloud_container_name", default_value="pointcloud_container"),
         DeclareLaunchArgument("vehicle_mirror_param_file", description="Path to vehicle mirror param file"),
+        DeclareLaunchArgument("above_vehicle_crop_box_min_z", default_value="1.4", description="[m] above base_link"),
+        DeclareLaunchArgument("above_vehicle_crop_box_max_z", default_value="2.3", description="[m] above base_link, sensor rig height"),
+        DeclareLaunchArgument("above_vehicle_crop_box_lateral_margin", default_value="0.4", description="[m] beyond the body on each side"),
         DeclareLaunchArgument(
             "distortion_correction_node_param_path",
             default_value=os.path.join(common_sensor_share_dir, "config", "distortion_corrector_node.param.yaml"),

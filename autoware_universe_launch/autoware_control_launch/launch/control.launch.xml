@@ -28,6 +28,9 @@
   <!-- Parameter paths: common -->
   <arg name="nearest_search_param_path" default="$(var control_config_dir)/common/nearest_search.param.yaml"/>
 
+  <!-- Trajectory fed to the control pipeline (default: Autoware planning output) -->
+  <arg name="input_trajectory_topic_name" default="/planning/trajectory"/>
+
   <!-- Parameter paths: trajectory gate -->
   <arg name="trajectory_gate_param_path" default="$(find-pkg-share autoware_trajectory_gate)/config/trajectory_gate.param.yaml"/>
 
@@ -71,7 +74,7 @@
     <group>
       <include file="$(find-pkg-share autoware_trajectory_gate)/launch/trajectory_gate.launch.xml">
         <arg name="config" value="$(var trajectory_gate_param_path)"/>
-        <arg name="inputs/main/trajectory" value="/planning/trajectory"/>
+        <arg name="inputs/main/trajectory" value="$(var input_trajectory_topic_name)"/>
         <arg name="output/trajectory" value="/control/trajectory"/>
       </include>
     </group>

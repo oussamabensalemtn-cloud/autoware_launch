@@ -35,6 +35,7 @@
   <exec_depend>autoware_multi_object_tracker</exec_depend>
   <exec_depend>autoware_overlay_rviz_plugin</exec_depend>
   <exec_depend>autoware_perception_config</exec_depend>
+  <exec_depend>autoware_occupancy_grid_map_outlier_filter</exec_depend>
   <exec_depend>autoware_perception_launch</exec_depend>
   <exec_depend>autoware_perception_online_evaluator</exec_depend>
   <exec_depend>autoware_perception_rviz_plugin</exec_depend>
@@ -45,6 +46,10 @@
   <exec_depend>autoware_pose_estimator_arbiter</exec_depend>
   <exec_depend>autoware_probabilistic_occupancy_grid_map</exec_depend>
   <exec_depend>autoware_string_stamped_rviz_plugin</exec_depend>
+  <!-- MRM stack (mrm.launch.xml, mrm_planning_simulator.launch.xml), from schtbs/autoware_custom -->
+  <exec_depend>mrm_launch</exec_depend>
+  <exec_depend>mrm_sim_tools</exec_depend>
+  <exec_depend>mrm_trigger_udp</exec_depend>
   <exec_depend>python3-bson</exec_depend>
   <exec_depend>python3-tornado</exec_depend>
   <exec_depend>rviz2</exec_depend>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Planning simulator with the MRM stack and its simulation adapter (MRM counterpart of planning_simulator.launch.xml).
+     Autoware planning acts as the MRM (as on the car). The ego is driven by a fake nominal AD system
+     through a mux that mimics the MABX switch. Trigger: ros2 topic pub (once) /mrm/trigger std_msgs/msg/Bool "{data: true}" -->
+<launch>
+  <arg name="map_path" description="point cloud and lanelet2 map directory path"/>
+  <arg name="path_file" description="waypoint yaml for the fake nominal driver (see mrm_sim_tools extract_centerline)"/>
+  <arg name="vehicle_model" default="sample_vehicle"/>
+  <arg name="sensor_model" default="sample_sensor_kit"/>
+  <arg name="rviz" default="true"/>
+  <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/autoware.rviz"/>
+  <arg name="cruise_speed" default="8.0" description="fake nominal cruise speed [m/s]"/>
+  <arg name="nominal_lateral_offset" default="0.0" description="fake nominal drives this far left of the lane center [m]"/>
+
+  <!-- Sim adapter: fake nominal -> mux -> Autoware control -->
+  <node pkg="mrm_sim_tools" exec="fake_nominal" name="fake_nominal" output="screen">
+    <param name="path_file" value="$(var path_file)"/>
+    <param name="cruise_speed" value="$(var cruise_speed)"/>
+    <param name="lateral_offset_m" value="$(var nominal_lateral_offset)"/>
+  </node>
+  <node pkg="mrm_sim_tools" exec="sim_trajectory_mux" name="sim_trajectory_mux" output="screen">
+    <param name="output_topic" value="/sim/control_trajectory"/>
+  </node>
+
+  <!-- MRM core -->
+  <include file="$(find-pkg-share mrm_launch)/launch/mrm_core.launch.xml">
+    <arg name="map_path" value="$(var map_path)"/>
+  </include>
+
+  <!-- The sample map has a virtual traffic light at the intersection of the curve. It needs coordination
+       messages from an infrastructure that does not exist in the simulator, so Autoware plans a stop
+       there forever. Not launching the module keeps the scenarios on the curve meaningful. -->
+  <let name="launch_virtual_traffic_light_module" value="false"/>
+
+  <!-- Autoware (planning = MRM core input; control follows the mux output) -->
+  <include file="$(find-pkg-share autoware_launch)/launch/planning_simulator.launch.xml">
+    <arg name="map_path" value="$(var map_path)"/>
+    <arg name="vehicle_model" value="$(var vehicle_model)"/>
+    <arg name="sensor_model" value="$(var sensor_model)"/>
+    <arg name="rviz" value="$(var rviz)"/>
+    <arg name="rviz_config" value="$(var rviz_config)"/>
+    <arg name="control_input_trajectory_topic_name" value="/sim/control_trajectory"/>
+    <!-- nobody approves behavior modules (avoidance, lane change) in hot standby: they must run on their own -->
+    <arg name="enable_all_modules_auto_mode" value="true"/>
+    <!-- reproducible scenarios: the dummy perception must not miss objects at random -->
+    <arg name="perception/enable_detection_failure" value="false"/>
+  </include>
+</launch>

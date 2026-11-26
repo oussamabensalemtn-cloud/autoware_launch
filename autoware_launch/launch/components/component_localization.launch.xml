@@ -29,9 +29,11 @@
   <let name="use_eagleye_twist" value="$(eval &quot;'eagleye' == '$(var twist_source)'&quot;)"/>
   <let name="use_gyro_odom_twist" value="$(eval &quot;'gyro_odom' == '$(var twist_source)'&quot;)"/>
 
-  <!-- only when running with a real vehicle, the pose_initializer judges the stop -->
-  <let name="stop_check_enabled" unless="$(eval &quot;'$(var system_run_mode)'=='online'&quot;)" value="false"/>
-  <let name="stop_check_enabled" if="$(eval &quot;'$(var system_run_mode)'=='online'&quot;)" value="true"/>
+  <!-- only when running with a real vehicle, the pose_initializer judges the stop.
+       The MRM stack turns it off (pose_initializer_stop_check:=false): it initializes from GNSS while the car drives,
+       and the 1 mm/s stop threshold is below the noise of the FZI twist at standstill. -->
+  <arg name="pose_initializer_stop_check" default="$(eval &quot;'$(var system_run_mode)'=='online'&quot;)"/>
+  <let name="stop_check_enabled" value="$(var pose_initializer_stop_check)"/>
 
   <!-- set initial pose -->
   <let name="user_defined_initial_pose/enable" value="$(eval &quot;len($(var initial_pose)) == 7&quot;)"/>
