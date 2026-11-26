@@ -38,6 +38,9 @@
       <param name="port" value="$(var trigger_port)"/>
     </node>
 
+    <!-- Autoware's own comfortable stop must not put a stop into /planning/trajectory: the MRM stack uses the stop
+         points of that plan (docs/requirements.md, open question 3). Read by tier4_system_launch/system.launch.xml. -->
+    <let name="autoware_mrm_comfortable_stop_to_planning" value="false"/>
     <include file="$(find-pkg-share autoware_launch)/launch/autoware.launch.xml">
       <arg name="map_path" value="$(var map_path)"/>
       <arg name="enable_all_modules_auto_mode" value="true"/>

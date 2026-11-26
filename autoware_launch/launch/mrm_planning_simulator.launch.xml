@@ -36,6 +36,9 @@
        there forever. Not launching the module keeps the scenarios on the curve meaningful. -->
   <let name="launch_virtual_traffic_light_module" value="false"/>
 
+  <!-- Autoware's own comfortable stop must not put a stop into /planning/trajectory: the MRM stack uses the stop
+       points of that plan (docs/requirements.md, open question 3). Read by tier4_system_launch/system.launch.xml. -->
+  <let name="autoware_mrm_comfortable_stop_to_planning" value="false"/>
   <!-- Autoware (planning = MRM core input; control follows the mux output) -->
   <include file="$(find-pkg-share autoware_launch)/launch/planning_simulator.launch.xml">
     <arg name="map_path" value="$(var map_path)"/>

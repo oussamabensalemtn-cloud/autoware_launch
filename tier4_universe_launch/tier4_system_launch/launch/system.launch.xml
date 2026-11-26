@@ -23,6 +23,8 @@
   <arg name="sensor_model" description="sensor model name"/>
 
   <arg name="mrm_handler_param_path"/>
+  <arg name="autoware_mrm_comfortable_stop_to_planning" default="true"
+       description="false in the MRM stack: Autoware's comfortable stop does not limit the planned velocity"/>
   <arg name="diagnostic_graph_aggregator_param_path"/>
   <arg name="diagnostic_graph_aggregator_graph_path"/>
   <arg name="diagnostic_graph_aggregator_graph_vars" default=""/>
@@ -99,10 +101,27 @@
     </group>
 
     <!-- MRM Operator -->
-    <group>
+    <group if="$(var autoware_mrm_comfortable_stop_to_planning)">
       <include file="$(find-pkg-share autoware_mrm_comfortable_stop_operator)/launch/mrm_comfortable_stop_operator.launch.py">
         <arg name="config_file" value="$(var mrm_comfortable_stop_operator_param_path)"/>
       </include>
+    </group>
+    <!-- MRM stack (mrm.launch.xml): Autoware's own comfortable stop must not reach planning. Its velocity limit
+         would put a stop into /planning/trajectory, which the MRM stack takes as an obstacle stop. Same node as the
+         upstream mrm_comfortable_stop_operator.launch.py, only the velocity limit goes to an unused topic, so the
+         driving mode logic and the diagnostics stay as they are. -->
+    <group unless="$(var autoware_mrm_comfortable_stop_to_planning)">
+      <node pkg="autoware_mrm_comfortable_stop_operator" exec="autoware_mrm_comfortable_stop_operator_node" name="mrm_comfortable_stop_operator" output="screen">
+        <param from="$(var mrm_comfortable_stop_operator_param_path)"/>
+        <remap from="~/input/mrm/comfortable_stop/operate" to="/system/mrm/comfortable_stop/operate"/>
+        <remap from="~/output/mrm/comfortable_stop/status" to="/system/mrm/comfortable_stop/status"/>
+        <remap from="~/output/velocity_limit" to="/mrm/disabled/autoware_comfortable_stop/velocity_limit"/>
+        <remap from="~/output/velocity_limit/clear" to="/mrm/disabled/autoware_comfortable_stop/clear_velocity_limit"/>
+        <remap from="~/input/driving_mode_request" to="/system/driving_mode/request"/>
+        <remap from="~/input/driving_mode_info" to="/system/driving_mode/info"/>
+        <remap from="~/output/driving_mode_active" to="/system/driving_mode/active"/>
+        <remap from="~/output/mrm_state" to="/system/driving_mode/mrm_state"/>
+      </node>
     </group>
     <group>
       <include file="$(find-pkg-share autoware_mrm_emergency_stop_operator)/launch/mrm_emergency_stop_operator.launch.py">
