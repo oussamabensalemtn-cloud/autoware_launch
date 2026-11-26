@@ -29,5 +29,6 @@ install(PROGRAMS
 ament_export_dependencies(rosidl_default_runtime)
 
 ament_auto_package(INSTALL_TO_SHARE
+  config
   launch
 )

@@ -5,6 +5,17 @@
   <arg name="trajectory_input_topic" default="/planning/trajectory"/>
   <!-- UDP target of the trajectory packets (127.0.0.1 = dry run, nothing reaches the Autobox) -->
   <arg name="autobox_ip" default="10.0.10.20"/>
+  <!-- The car's sensors (Ouster driver, cameras, ANavS GNSS/IMU/twist, steering) publish in sensor_domain. If Autoware
+       runs in another ROS_DOMAIN_ID (e.g. 101, next to the nominal AD system in 0), domain_bridge copies the topics in
+       config/domain_bridge.yaml into it. Nothing goes back: the trajectory to the Autobox uses UDP. -->
+  <arg name="sensor_domain" default="0" description="ROS_DOMAIN_ID in which the car's sensors publish"/>
+  <arg name="domain_bridge" default="true" description="bridge the sensor topics if ROS_DOMAIN_ID differs from sensor_domain"/>
+  <arg name="domain_bridge_config" default="$(find-pkg-share ioniq5_vehicle_launch)/config/domain_bridge.yaml"/>
+
+  <let name="ros_domain" value="$(env ROS_DOMAIN_ID 0)"/>
+  <let name="start_domain_bridge" value="$(eval '&quot;$(var domain_bridge)&quot;.lower() == &quot;true&quot; and &quot;$(var ros_domain)&quot; != &quot;$(var sensor_domain)&quot;')"/>
+  <node pkg="domain_bridge" exec="domain_bridge" name="ioniq5_domain_bridge" output="screen" if="$(var start_domain_bridge)"
+        args="--from $(var sensor_domain) --to $(var ros_domain) $(var domain_bridge_config)"/>
 
   <node pkg="ioniq5_vehicle_launch" exec="vehicle_status_publisher.py" name="vehicle_status_publisher" output="screen"/>
 

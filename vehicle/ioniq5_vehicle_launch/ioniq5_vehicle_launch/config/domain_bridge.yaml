@@ -1,0 +1,38 @@
+# One-way bridge: sensor domain (nominal system / EPC, 0) -> the domain this Autoware runs in (ROS 2 domain_bridge).
+# Started by vehicle_interface.launch.xml (standard AD stack and MRM stack) with --from <sensor_domain>
+# --to $ROS_DOMAIN_ID, which override the domains below; not started when both are equal.
+# Nothing goes back: the trajectory to the MicroAutoBox and the MRM trigger use UDP.
+#
+# Only the raw inputs of ioniq5_sensor_kit_launch and vehicle_status_publisher are bridged. Not bridged:
+#   /tf, /tf_static   our Autoware publishes its own TF tree
+#   other cameras     only camera_f (camera6) feeds YOLOX, raw images are large
+#   /wheel_velocity   no subscriber
+# Without a qos block reliability and durability follow the publisher in the sensor domain.
+name: ioniq5_domain_bridge
+from_domain: 0
+to_domain: 101
+topics:
+  # LiDAR (ouster_format_converter), from the ouster_lidar_node container, BEST_EFFORT
+  ouster/points:
+    type: sensor_msgs/msg/PointCloud2
+    qos:
+      depth: 2
+  # front camera (camera.launch.xml relay_camera6 + YOLOX)
+  sensor/camera_f/undistorted/image:
+    type: sensor_msgs/msg/Image
+    qos:
+      depth: 2
+  sensor/camera_f/undistorted/camera_info:
+    type: sensor_msgs/msg/CameraInfo
+  # GNSS / IMU / twist (gnss.launch.xml, sensing.launch.xml)
+  geo:
+    type: sensor_msgs/msg/NavSatFix
+  hi5/anavs/imu:
+    type: sensor_msgs/msg/Imu
+  fzi/twist_with_covariance_stamped:
+    type: geometry_msgs/msg/TwistWithCovarianceStamped
+  hi5/tf/center_rear_axle_ned:
+    type: tf2_msgs/msg/TFMessage
+  # vehicle_status_publisher
+  steering_angle:
+    type: std_msgs/msg/Float64
