@@ -35,6 +35,7 @@
   <exec_depend>autoware_multi_object_tracker</exec_depend>
   <exec_depend>autoware_overlay_rviz_plugin</exec_depend>
   <exec_depend>autoware_perception_config</exec_depend>
+  <exec_depend>autoware_occupancy_grid_map_outlier_filter</exec_depend>
   <exec_depend>autoware_perception_launch</exec_depend>
   <exec_depend>autoware_perception_online_evaluator</exec_depend>
   <exec_depend>autoware_perception_rviz_plugin</exec_depend>
