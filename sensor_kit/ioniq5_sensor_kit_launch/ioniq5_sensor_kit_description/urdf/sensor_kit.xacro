@@ -133,6 +133,25 @@
       fov="1.5706963267948966"
     />
 
+    <!-- Frames as the SafeAD camera drivers stamp them (images, camera_info, and thus the YOLOX ROIs). The calibration
+         above is in the optical convention (z forward, x right, y down), so camera_X_link is already the optical
+         frame and camera_X is the same pose. Without these links Autoware's camera-lidar fusion cannot project. -->
+    <xacro:macro name="driver_camera_frame" params="name">
+      <joint name="${name}_driver_frame_joint" type="fixed">
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <parent link="${name}_link"/>
+        <child link="${name}"/>
+      </joint>
+      <link name="${name}"/>
+    </xacro:macro>
+    <xacro:driver_camera_frame name="camera_fl"/>
+    <xacro:driver_camera_frame name="camera_fr"/>
+    <xacro:driver_camera_frame name="camera_b"/>
+    <xacro:driver_camera_frame name="camera_bl"/>
+    <xacro:driver_camera_frame name="camera_br"/>
+    <xacro:driver_camera_frame name="camera_fz"/>
+    <xacro:driver_camera_frame name="camera_f"/>
+
   </xacro:macro>
 
 </robot>
