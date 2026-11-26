@@ -66,7 +66,12 @@ class OusterToXYZIRCAEDT(Node):
         out["channel"] = raw["ring"].astype(np.uint16)
 
         x = raw["x"]; y = raw["y"]; z = raw["z"]
-        out["azimuth"] = np.mod(np.arctan2(y, x), 2.0 * np.pi).astype(np.float32)
+        # Azimuth in the scan direction: the Ouster spins clockwise (seen from above), so within a ring the columns
+        # come in clockwise order and atan2 (counter-clockwise) would decrease from point to point. Autoware's
+        # ring_outlier_filter requires the azimuth to increase along a ring (step < 1 deg), otherwise it drops every
+        # point (older versions hid this with a degree/radian bug in that check). The distortion corrector derives
+        # sign and offset of the azimuth convention from the data, so a clockwise azimuth is fine there.
+        out["azimuth"] = np.mod(-np.arctan2(y, x), 2.0 * np.pi).astype(np.float32)
         out["elevation"] = np.arctan2(z, np.hypot(x, y)).astype(np.float32)
         out["distance"] = np.sqrt(x * x + y * y + z * z).astype(np.float32)
 
