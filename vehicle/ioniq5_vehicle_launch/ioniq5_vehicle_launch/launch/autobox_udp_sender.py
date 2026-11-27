@@ -26,7 +26,7 @@ def wrap_0_2pi(angle):
 
 # Trajectory status packet (MRM PC -> MicroAutoBox, default port 44445), little endian, 80 bytes, sent at 50 Hz.
 # Tells the tracking controller whether the trajectory stream on 44444 is up to date and valid.
-# Floats that are not available are NaN. MATLAB: matlab/autobox_trajectory_status_deserialize.m
+# Floats that are not available are NaN. The MATLAB deserializer lives in the MABX Simulink model.
 STATUS_MAGIC = 0x41575453  # "AWTS"
 STATUS_VERSION = 1
 STATUS_FIELDS = (
