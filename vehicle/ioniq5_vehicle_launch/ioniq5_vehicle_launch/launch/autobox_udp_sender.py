@@ -24,6 +24,86 @@ def wrap_0_2pi(angle):
     return wrapped
 
 
+# Trajectory status packet (MRM PC -> MicroAutoBox, default port 44445), little endian, 80 bytes, sent at 50 Hz.
+# Tells the tracking controller whether the trajectory stream on 44444 is up to date and valid.
+# Floats that are not available are NaN. MATLAB: matlab/autobox_trajectory_status_deserialize.m
+STATUS_MAGIC = 0x41575453  # "AWTS"
+STATUS_VERSION = 1
+STATUS_FIELDS = (
+    ("magic", "I"), ("version", "H"), ("reserved", "H"), ("seq", "I"), ("stamp_sec", "i"), ("stamp_nanosec", "I"),
+    ("traj_seq", "I"), ("traj_stamp_sec", "i"), ("traj_stamp_nanosec", "I"),  # seq / stamp of the last packet on 44444
+    ("traj_age_s", "f"),         # now - stamp of the planner trajectory in the last packet
+    ("since_last_traj_s", "f"),  # now - send time of the last trajectory packet
+    ("valid", "B"),              # 1 = the last trajectory packet is fresh and usable (see status_valid)
+    ("source", "B"),             # 0 unknown, 1 /planning/trajectory (standard stack), 2 /mrm/trajectory (MRM stack)
+    ("mrm_state", "B"),          # 0 n/a, 1 standby, 2 active, 3 stopped, 4 invalid (from /mrm/status)
+    ("mrm_level", "B"),          # /mrm/status level: 0 OK, 1 WARN, 2 ERROR, 3 STALE, 255 n/a
+    ("triggered", "B"),          # 1 = the MRM stack has latched the trigger
+    ("n_valid", "B"),            # valid points in the last trajectory packet
+    ("warnings", "H"),           # bit field, see MRM_WARNINGS
+    ("horizon_s", "f"),          # planned time covered ahead of the car in the last packet
+    ("end_speed_mps", "f"),      # speed at the last valid point of the last packet (0 = window ends in standstill)
+    ("ego_offset_m", "f"),       # distance car -> trajectory at the time of the last packet
+    ("heading_err_rad", "f"),    # car heading - trajectory heading at the car, (-pi, pi]
+    ("odom_age_s", "f"),         # now - stamp of the odometry used for the last packet
+    ("plan_age_s", "f"),         # /mrm/status: age of Autoware's plan used by the MRM
+    ("stop_distance_m", "f"),    # /mrm/status: distance to the MRM stop point
+    ("path_remaining_m", "f"),   # /mrm/status: length of Autoware's path ahead
+)
+STATUS_FMT = "<" + "".join(t for _, t in STATUS_FIELDS)
+STATUS_SIZE = struct.calcsize(STATUS_FMT)  # 80
+MRM_STATES = {"standby": 1, "active": 2, "stopped": 3, "invalid": 4}
+MRM_WARNINGS = ("path_short", "plan_stop_infeasible", "object_blend_extended", "object_stop",
+                "object_stop_infeasible", "no_objects", "stale_plan")  # bit 0, 1, ...
+
+
+def warning_bits(text):
+    names = {w.strip() for w in text.split(",") if w.strip()}
+    return sum(1 << i for i, w in enumerate(MRM_WARNINGS) if w in names)
+
+
+def pack_status(**values):
+    """Fields of STATUS_FIELDS as keyword arguments; magic, version and reserved are set here."""
+    values.update(magic=STATUS_MAGIC, version=STATUS_VERSION, reserved=0)
+    masks = {"B": 0xFF, "H": 0xFFFF, "I": 0xFFFFFFFF}
+    out = []
+    for name, t in STATUS_FIELDS:
+        v = values[name]
+        if t == "f":
+            out.append(float(v))
+        elif t in masks:
+            out.append(int(v) & masks[t])
+        else:
+            out.append(int(v))
+    return struct.pack(STATUS_FMT, *out)
+
+
+def unpack_status(packet):
+    """dict of the fields, or None for a wrong size, magic or version."""
+    if len(packet) != STATUS_SIZE:
+        return None
+    d = dict(zip((n for n, _ in STATUS_FIELDS), struct.unpack(STATUS_FMT, packet)))
+    return d if d["magic"] == STATUS_MAGIC and d["version"] == STATUS_VERSION else None
+
+
+def status_valid(since_last, traj_age, offset, max_age, max_offset, mrm_required, mrm_state):
+    """valid flag of the status packet: a recent packet, a recent plan, the car near it and, in the MRM stack,
+    /mrm/status present and not invalid."""
+    ok = (since_last is not None and since_last <= max_age and traj_age is not None and traj_age <= max_age
+          and offset is not None and offset <= max_offset)
+    if mrm_required:
+        ok = ok and mrm_state in (1, 2, 3)
+    return bool(ok)
+
+
+def heading_at(f, s_ego):
+    return float(np.interp(s_ego, f["s"], np.unwrap(f["yaw"])))
+
+
+def wrap_pi(a):
+    return math.atan2(math.sin(a), math.cos(a))
+
+
 def packet_size(n_max):
     return struct.calcsize("<" + HEADER_FMT) + len(FIELDS) * 4 * n_max
 
@@ -112,7 +192,7 @@ def unpack(packet, n_max, big_endian=False):
     return header, data
 
 
-def selftest(out_path=None):
+def selftest(out_path=None, status_path=None):
     results = []
 
     def check(name, passed, detail=""):
@@ -178,7 +258,29 @@ def selftest(out_path=None):
           and np.minimum(wy, TWO_PI - wy).max() <= 0.1 + 1e-9,
           f"max distance to 0: {np.minimum(wy, TWO_PI - wy).max():.3f} rad")
 
+    sample = dict(seq=5, stamp_sec=123, stamp_nanosec=500000000, traj_seq=7, traj_stamp_sec=123,
+                  traj_stamp_nanosec=456, traj_age_s=0.03, since_last_traj_s=0.012, valid=1, source=2,
+                  mrm_state=2, mrm_level=1, triggered=1, n_valid=31, warnings=warning_bits("path_short, no_objects"),
+                  horizon_s=3.3, end_speed_mps=0.0, ego_offset_m=0.02, heading_err_rad=-0.01, odom_age_s=0.008,
+                  plan_age_s=0.06, stop_distance_m=25.5, path_remaining_m=float("nan"))
+    st = unpack_status(pack_status(**sample))
+    same = st is not None and all(
+        (math.isnan(st[k]) and math.isnan(v)) if isinstance(v, float) and math.isnan(v)
+        else abs(st[k] - v) < 1e-6 for k, v in sample.items())
+    check("status packet", STATUS_SIZE == 80 and same and st["warnings"] == 0b100001
+          and unpack_status(pack_status(**sample)[:-1]) is None
+          and unpack_status(b"\0" + pack_status(**sample)[1:]) is None, f"{STATUS_SIZE} bytes")
+    check("status valid flag",
+          status_valid(0.02, 0.05, 0.1, 0.1, 3.0, True, 1) and not status_valid(0.02, 0.05, 0.1, 0.1, 3.0, True, 4)
+          and not status_valid(0.2, 0.05, 0.1, 0.1, 3.0, False, 0) and status_valid(0.02, 0.05, 0.1, 0.1, 3.0, False, 0)
+          and not status_valid(None, None, None, 0.1, 3.0, False, 0) and not status_valid(0.02, 0.05, 4.0, 0.1, 3.0, False, 0),
+          "fresh/stale/invalid MRM/off the trajectory")
+
     print(f"{sum(results)}/{len(results)} checks passed")
+    if status_path:
+        with open(status_path, "wb") as fh:
+            fh.write(pack_status(**sample))
+        print(f"wrote {status_path}: {sample}")
     if out_path:
         with open(out_path, "wb") as fh:
             fh.write(pack(w, n_max, sp, 7, 123, 456))
@@ -190,11 +292,13 @@ def selftest(out_path=None):
 def main():
     if "--selftest" in sys.argv:
         i = sys.argv.index("--selftest")
-        sys.exit(0 if selftest(sys.argv[i + 1] if i + 1 < len(sys.argv) else None) else 1)
+        files = sys.argv[i + 1:i + 3]
+        sys.exit(0 if selftest(*files) else 1)
 
     import rclpy
     from rclpy.node import Node
     from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
+    from diagnostic_msgs.msg import DiagnosticStatus
     from nav_msgs.msg import Odometry
     from ioniq5_vehicle_launch.msg import ControllerTrajectory
 
@@ -217,6 +321,12 @@ def main():
             self.max_offset = float(p("max_lateral_offset", 3.0).value)
             self.big_endian = bool(p("big_endian", False).value)
             max_packet = int(p("max_packet_bytes", 1032).value)
+            self.status_target = (self.target[0], int(p("status_port", 44445).value))
+            status_rate = float(p("status_rate_hz", 50.0).value)
+            self.source = int(p("trajectory_source", 0).value)  # 1 standard stack, 2 MRM stack
+            self.max_age = float(p("status_max_age_s", 0.1).value)
+            mrm_status_topic = p("mrm_status_topic", "/mrm/status").value
+            self.mrm_status_timeout = float(p("mrm_status_timeout_s", 0.5).value)
 
             size = packet_size(self.n_max)
             if size > max_packet:
@@ -236,6 +346,10 @@ def main():
             self.seq = 0
             self.ego = None
             self.ego_stamp = None
+            self.status_seq = 0
+            self.last = None        # what went out in the last trajectory packet
+            self.mrm = None         # last /mrm/status
+            self.mrm_time = None
 
             qos = QoSProfile(depth=1, history=HistoryPolicy.KEEP_LAST,
                              reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.VOLATILE)
@@ -243,6 +357,12 @@ def main():
             self.create_subscription(ControllerTrajectory, in_topic, self.on_trajectory, qos)
             # only needed when bound to a port the Autobox sends to; harmless otherwise
             self.create_timer(0.2, self.drain_feedback)
+            if self.status_target[1] > 0 and status_rate > 0.0:
+                self.create_subscription(DiagnosticStatus, mrm_status_topic, self.on_mrm_status, 10)
+                self.create_timer(1.0 / status_rate, self.send_status)
+                self.get_logger().info(
+                    f"trajectory status -> udp://{self.status_target[0]}:{self.status_target[1]} at "
+                    f"{status_rate:.0f} Hz (source {self.source}, max age {self.max_age} s)")
             self.get_logger().info(
                 f"{in_topic} -> udp://{self.target[0]}:{self.target[1]} from port {self.local_port or 'auto'}, "
                 f"{self.n_max} points: {self.n_behind} behind every {self.behind_spacing} m, car at index "
@@ -293,7 +413,59 @@ def main():
             except (BlockingIOError, OSError) as e:
                 self.get_logger().warn(f"UDP send failed: {e}", throttle_duration_sec=1.0)
                 return
+            n_valid = len(w["t"])
+            self.last = {
+                "seq": self.seq, "stamp": (self.ego_stamp.sec, self.ego_stamp.nanosec),
+                "sent": self.get_clock().now().nanoseconds * 1e-9,
+                "planner": msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9,
+                "odom": self.ego_stamp.sec + self.ego_stamp.nanosec * 1e-9,
+                "n_valid": n_valid, "horizon": float(horizon), "end_speed": float(w["v"][n_valid - 1]),
+                "offset": offset, "heading_err": wrap_pi(self.ego[2] - heading_at(f, s_ego)),
+            }
             self.seq = (self.seq + 1) & 0xFFFFFFFF
+
+        def on_mrm_status(self, msg):
+            self.mrm = msg
+            self.mrm_time = self.get_clock().now().nanoseconds * 1e-9
+
+        def send_status(self):
+            now_msg = self.get_clock().now().to_msg()
+            now = now_msg.sec + now_msg.nanosec * 1e-9
+            nan = float("nan")
+            last = self.last
+            v = dict(seq=self.status_seq, stamp_sec=now_msg.sec, stamp_nanosec=now_msg.nanosec, traj_seq=0,
+                     traj_stamp_sec=0, traj_stamp_nanosec=0, traj_age_s=nan, since_last_traj_s=nan, valid=0,
+                     source=self.source, mrm_state=0, mrm_level=255, triggered=0, n_valid=0, warnings=0,
+                     horizon_s=nan, end_speed_mps=nan, ego_offset_m=nan, heading_err_rad=nan, odom_age_s=nan,
+                     plan_age_s=nan, stop_distance_m=nan, path_remaining_m=nan)
+            if last is not None:
+                v.update(traj_seq=last["seq"], traj_stamp_sec=last["stamp"][0], traj_stamp_nanosec=last["stamp"][1],
+                         traj_age_s=now - last["planner"], since_last_traj_s=now - last["sent"],
+                         n_valid=last["n_valid"], horizon_s=last["horizon"], end_speed_mps=last["end_speed"],
+                         ego_offset_m=last["offset"], heading_err_rad=last["heading_err"],
+                         odom_age_s=now - last["odom"])
+            if self.mrm is not None and now - self.mrm_time <= self.mrm_status_timeout:
+                kv = {k.key: k.value for k in self.mrm.values}
+                level = self.mrm.level  # 'byte' field: bytes of length 1 in rclpy
+                level = level[0] if isinstance(level, (bytes, bytearray)) else int(level)
+                v.update(mrm_state=MRM_STATES.get(kv.get("state", ""), 0), mrm_level=level,
+                         triggered=int(kv.get("triggered", "") == "True"),
+                         warnings=warning_bits(kv.get("warnings", "")))
+                for field, key in (("plan_age_s", "plan_age_s"), ("stop_distance_m", "stop_distance_m"),
+                                   ("path_remaining_m", "path_remaining_m")):
+                    try:
+                        v[field] = float(kv[key])
+                    except (KeyError, ValueError):
+                        pass
+            v["valid"] = int(status_valid(
+                v["since_last_traj_s"] if last else None, v["traj_age_s"] if last else None,
+                v["ego_offset_m"] if last else None, self.max_age, self.max_offset, self.source == 2, v["mrm_state"]))
+            try:
+                self.sock.sendto(pack_status(**v), self.status_target)
+            except (BlockingIOError, OSError) as e:
+                self.get_logger().warn(f"UDP status send failed: {e}", throttle_duration_sec=1.0)
+                return
+            self.status_seq = (self.status_seq + 1) & 0xFFFFFFFF
 
     rclpy.init()
     node = AutoboxUdpSender()

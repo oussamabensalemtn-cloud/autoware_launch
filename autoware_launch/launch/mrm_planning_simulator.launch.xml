@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Planning simulator with the MRM stack and its simulation adapter (MRM counterpart of planning_simulator.launch.xml).
      Autoware planning acts as the MRM (as on the car). The ego is driven by a fake nominal AD system
-     through a mux that mimics the MABX switch. Trigger: ros2 topic pub (once) /mrm/trigger std_msgs/msg/Bool "{data: true}" -->
+     through a mux that mimics the MABX switch. Trigger: RViz's "Set Emergency" button, or ros2 topic pub (once) /mrm/trigger std_msgs/msg/Bool "{data: true}" -->
 <launch>
   <arg name="map_path" description="point cloud and lanelet2 map directory path"/>
   <arg name="path_file" description="waypoint yaml for the fake nominal driver (see mrm_sim_tools extract_centerline)"/>
@@ -25,6 +25,9 @@
     <param name="output_topic" value="/sim/control_trajectory"/>
   </node>
 
+  <!-- RViz's "Set Emergency" button -> /mrm/trigger (no UDP sender in the simulator) -->
+  <node pkg="mrm_trigger_udp" exec="trigger_button" name="mrm_trigger_button" output="screen"/>
+
   <!-- MRM core -->
   <include file="$(find-pkg-share mrm_launch)/launch/mrm_core.launch.xml">
     <arg name="map_path" value="$(var map_path)"/>
@@ -46,6 +49,8 @@
     <arg name="sensor_model" value="$(var sensor_model)"/>
     <arg name="rviz" value="$(var rviz)"/>
     <arg name="rviz_config" value="$(var rviz_config)"/>
+    <arg name="rviz_emergency_service" value="/mrm/set_emergency"/>
+    <arg name="rviz_emergency_topic" value="/mrm/emergency_state"/>
     <arg name="control_input_trajectory_topic_name" value="/sim/control_trajectory"/>
     <!-- nobody approves behavior modules (avoidance, lane change) in hot standby: they must run on their own -->
     <arg name="enable_all_modules_auto_mode" value="true"/>

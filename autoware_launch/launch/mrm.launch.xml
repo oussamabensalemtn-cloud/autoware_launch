@@ -10,12 +10,14 @@
        - MRM core (mrm_launch/mrm_core.launch.xml): route along the current lane, stop trajectory /mrm/trajectory,
        - the vehicle interface sends /mrm/trajectory to the MicroAutoBox instead of /planning/trajectory,
        - the behavior modules (avoidance, lane change) run without approval (nobody approves in standby),
-       - the MRM trigger comes from the MicroAutoBox over UDP,
+       - MRM trigger: RViz's "Set Emergency" button or `ros2 topic pub /mrm/trigger ...` -> /mrm/trigger,
+         latched and sent to the MicroAutoBox over UDP (mrm_trigger_udp, 10.0.10.20:44455, 50 Hz),
        - refuses to start in the nominal system's ROS domain (its /planning, /control, ... topics would collide). -->
 <launch>
   <arg name="map_path" description="Autoware map directory (lanelet2_map.osm + map_projector_info.yaml)"/>
   <arg name="vehicle_model" default="sample_vehicle" description="vehicle model name (as in autoware.launch.xml)"/>
-  <arg name="trigger_port" default="45000" description="UDP port for the MRM trigger from the MicroAutoBox"/>
+  <arg name="autobox_ip" default="10.0.10.20" description="MicroAutoBox IP for trajectory, status and trigger (127.0.0.1 = dry run)"/>
+  <arg name="trigger_port" default="44455" description="UDP port of the MRM trigger at the MicroAutoBox"/>
   <arg name="nominal_domain" default="0" description="ROS_DOMAIN_ID of the nominal AD system"/>
 
   <let name="mrm_domain" value="$(env ROS_DOMAIN_ID 0)"/>
@@ -34,7 +36,10 @@
       <arg name="vehicle_model" value="$(var vehicle_model)"/>
     </include>
 
-    <node pkg="mrm_trigger_udp" exec="trigger_udp_receiver" name="mrm_trigger_udp_receiver" output="screen">
+    <!-- RViz's "Set Emergency" button -> /mrm/trigger; /mrm/trigger -> UDP to the MicroAutoBox -->
+    <node pkg="mrm_trigger_udp" exec="trigger_button" name="mrm_trigger_button" output="screen"/>
+    <node pkg="mrm_trigger_udp" exec="trigger_udp_sender" name="mrm_trigger_udp_sender" output="screen">
+      <param name="autobox_ip" value="$(var autobox_ip)"/>
       <param name="port" value="$(var trigger_port)"/>
     </node>
 
@@ -44,6 +49,8 @@
     <include file="$(find-pkg-share autoware_launch)/launch/autoware.launch.xml">
       <arg name="map_path" value="$(var map_path)"/>
       <arg name="enable_all_modules_auto_mode" value="true"/>
+      <arg name="rviz_emergency_service" value="/mrm/set_emergency"/>
+      <arg name="rviz_emergency_topic" value="/mrm/emergency_state"/>
     </include>
   </group>
 </launch>

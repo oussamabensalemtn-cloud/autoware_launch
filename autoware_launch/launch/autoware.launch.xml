@@ -45,6 +45,9 @@
   <arg name="rviz_config_name" default="autoware.rviz" description="rviz config name"/>
   <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/$(var rviz_config_name)" description="rviz config path"/>
   <arg name="rviz_respawn" default="true"/>
+  <!-- the "Set Emergency" button of the state panel; the MRM stacks point it to their MRM trigger (/mrm/set_emergency, /mrm/emergency_state) -->
+  <arg name="rviz_emergency_service" default="/api/autoware/set/emergency" description="service called by RViz's Set Emergency button"/>
+  <arg name="rviz_emergency_topic" default="/api/autoware/get/emergency" description="emergency state shown on RViz's Set Emergency button"/>
   <!-- Perception -->
   <arg name="traffic_light_recognition/use_high_accuracy_detection" default="true" description="enable to use high accuracy detection for traffic light recognition"/>
   <!-- Auto mode setting-->
@@ -168,6 +171,8 @@
       respawn="$(var rviz_respawn)"
     >
       <env name="QT_QPA_PLATFORMTHEME" value="qt5ct"/>
+      <remap from="/api/autoware/set/emergency" to="$(var rviz_emergency_service)"/>
+      <remap from="/api/autoware/get/emergency" to="$(var rviz_emergency_topic)"/>
     </node>
   </group>
 </launch>
