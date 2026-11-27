@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Planning simulator with the MRM stack and its simulation adapter (MRM counterpart of planning_simulator.launch.xml).
      Autoware planning acts as the MRM (as on the car). The ego is driven by a fake nominal AD system
-     through a mux that mimics the MABX switch. Trigger: ros2 topic pub (once) /mrm/trigger std_msgs/msg/Bool "{data: true}" -->
+     through a mux that mimics the MABX switch. Trigger: RViz's "Set Emergency" button, or ros2 topic pub (once) /mrm/trigger std_msgs/msg/Bool "{data: true}" -->
 <launch>
   <arg name="map_path" description="point cloud and lanelet2 map directory path"/>
   <arg name="path_file" description="waypoint yaml for the fake nominal driver (see mrm_sim_tools extract_centerline)"/>
   <arg name="vehicle_model" default="sample_vehicle"/>
   <arg name="sensor_model" default="sample_sensor_kit"/>
   <arg name="rviz" default="true"/>
-  <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/autoware.rviz"/>
+  <!-- Autoware's RViz config plus /mrm/trajectory (magenta, display "MRMTrajectory") -->
+  <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/mrm.rviz"/>
   <arg name="cruise_speed" default="8.0" description="fake nominal cruise speed [m/s]"/>
   <arg name="nominal_lateral_offset" default="0.0" description="fake nominal drives this far left of the lane center [m]"/>
   <arg name="nominal_lateral_offset_profile" default=""
@@ -24,6 +25,24 @@
   <node pkg="mrm_sim_tools" exec="sim_trajectory_mux" name="sim_trajectory_mux" output="screen">
     <param name="output_topic" value="/sim/control_trajectory"/>
   </node>
+
+  <!-- RViz's "Set Emergency" button -> /mrm/trigger -->
+  <node pkg="mrm_trigger_udp" exec="trigger_button" name="mrm_trigger_button" output="screen"/>
+
+  <!-- Optional bench test of the MicroAutoBox: send /mrm/trajectory (44444), the trajectory status (44445) and the
+       trigger (44455) to autobox_ip, as mrm.launch.xml does on the car. Empty (default) = no UDP.
+       Only with the car parked and the MABX not engaged: the trajectory is at the simulated pose, not the real one. -->
+  <arg name="autobox_ip" default="" description="MicroAutoBox IP for a bench test (e.g. 10.0.10.20, 127.0.0.1 = dry run); empty = off"/>
+  <group if="$(eval '&quot;$(var autobox_ip)&quot; != &quot;&quot;')">
+    <include file="$(find-pkg-share ioniq5_vehicle_launch)/launch/autobox_link.launch.xml">
+      <arg name="trajectory_input_topic" value="/mrm/trajectory"/>
+      <arg name="autobox_ip" value="$(var autobox_ip)"/>
+    </include>
+    <node pkg="mrm_trigger_udp" exec="trigger_udp_sender" name="mrm_trigger_udp_sender" output="screen">
+      <param name="autobox_ip" value="$(var autobox_ip)"/>
+      <param name="port" value="44455"/>
+    </node>
+  </group>
 
   <!-- MRM core -->
   <include file="$(find-pkg-share mrm_launch)/launch/mrm_core.launch.xml">
@@ -46,6 +65,8 @@
     <arg name="sensor_model" value="$(var sensor_model)"/>
     <arg name="rviz" value="$(var rviz)"/>
     <arg name="rviz_config" value="$(var rviz_config)"/>
+    <arg name="rviz_emergency_service" value="/mrm/set_emergency"/>
+    <arg name="rviz_emergency_topic" value="/mrm/emergency_state"/>
     <arg name="control_input_trajectory_topic_name" value="/sim/control_trajectory"/>
     <!-- nobody approves behavior modules (avoidance, lane change) in hot standby: they must run on their own -->
     <arg name="enable_all_modules_auto_mode" value="true"/>

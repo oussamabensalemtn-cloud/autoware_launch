@@ -5,6 +5,8 @@
   <arg name="trajectory_input_topic" default="/planning/trajectory"/>
   <!-- UDP target of the trajectory packets (127.0.0.1 = dry run, nothing reaches the Autobox) -->
   <arg name="autobox_ip" default="10.0.10.20"/>
+  <!-- trajectory status for the Autobox (is the trajectory on 44444 up to date and valid?), 0 = off -->
+  <arg name="autobox_status_port" default="44445"/>
   <!-- The car's sensors (Ouster driver, cameras, ANavS GNSS/IMU/twist, steering) publish in sensor_domain. If Autoware
        runs in another ROS_DOMAIN_ID (e.g. 101, next to the nominal AD system in 0), domain_bridge copies the topics in
        config/domain_bridge.yaml into it. Nothing goes back: the trajectory to the Autobox uses UDP. -->
@@ -19,25 +21,10 @@
 
   <node pkg="ioniq5_vehicle_launch" exec="vehicle_status_publisher.py" name="vehicle_status_publisher" output="screen"/>
 
-  <!-- Autoware trajectory -> smoothed trajectory (t, x, y, yaw, v, a, s, kappa) -->
-  <node pkg="ioniq5_vehicle_launch" exec="autobox_trajectory_bridge.py" name="autobox_trajectory_bridge" output="screen">
-    <param name="input_topic" value="$(var trajectory_input_topic)"/>
-    <param name="output_topic" value="/HI5/autoware_controller_trajectory"/>
-    <param name="resample_ds" value="0.2"/>
-    <param name="smoothing_length_m" value="8.0"/>
-    <param name="max_deviation_m" value="0.10"/>
-  </node>
-
-    <!-- smoothed trajectory -> 31-point UDP packet (format version 2) for the Autobox -->
-  <node pkg="ioniq5_vehicle_launch" exec="autobox_udp_sender.py" name="autobox_udp_sender" output="screen">
-    <param name="input_topic" value="/HI5/autoware_controller_trajectory"/>
-    <param name="autobox_ip" value="$(var autobox_ip)"/>
-    <param name="autobox_port" value="44444"/>
-    <param name="local_port" value="0"/>
-    <param name="n_behind" value="6"/>
-    <param name="behind_spacing_m" value="0.5"/>
-    <param name="min_spacing_m" value="0.3"/>
-    <param name="max_spacing_m" value="3.0"/>
-    <param name="min_horizon" value="3.0"/>
-  </node>
+  <!-- trajectory bridge + UDP sender (trajectory 44444, status 44445), shared with the MRM simulator -->
+  <include file="$(find-pkg-share ioniq5_vehicle_launch)/launch/autobox_link.launch.xml">
+    <arg name="trajectory_input_topic" value="$(var trajectory_input_topic)"/>
+    <arg name="autobox_ip" value="$(var autobox_ip)"/>
+    <arg name="autobox_status_port" value="$(var autobox_status_port)"/>
+  </include>
 </launch>

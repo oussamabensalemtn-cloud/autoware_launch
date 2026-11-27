@@ -50,6 +50,7 @@
   <exec_depend>mrm_launch</exec_depend>
   <exec_depend>mrm_sim_tools</exec_depend>
   <exec_depend>mrm_trigger_udp</exec_depend>
+  <exec_depend>ioniq5_vehicle_launch</exec_depend>
   <exec_depend>python3-bson</exec_depend>
   <exec_depend>python3-tornado</exec_depend>
   <exec_depend>rviz2</exec_depend>
