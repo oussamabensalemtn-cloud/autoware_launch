@@ -25,8 +25,23 @@
     <param name="output_topic" value="/sim/control_trajectory"/>
   </node>
 
-  <!-- RViz's "Set Emergency" button -> /mrm/trigger (no UDP sender in the simulator) -->
+  <!-- RViz's "Set Emergency" button -> /mrm/trigger -->
   <node pkg="mrm_trigger_udp" exec="trigger_button" name="mrm_trigger_button" output="screen"/>
+
+  <!-- Optional bench test of the MicroAutoBox: send /mrm/trajectory (44444), the trajectory status (44445) and the
+       trigger (44455) to autobox_ip, as mrm.launch.xml does on the car. Empty (default) = no UDP.
+       Only with the car parked and the MABX not engaged: the trajectory is at the simulated pose, not the real one. -->
+  <arg name="autobox_ip" default="" description="MicroAutoBox IP for a bench test (e.g. 10.0.10.20, 127.0.0.1 = dry run); empty = off"/>
+  <group if="$(eval '&quot;$(var autobox_ip)&quot; != &quot;&quot;')">
+    <include file="$(find-pkg-share ioniq5_vehicle_launch)/launch/autobox_link.launch.xml">
+      <arg name="trajectory_input_topic" value="/mrm/trajectory"/>
+      <arg name="autobox_ip" value="$(var autobox_ip)"/>
+    </include>
+    <node pkg="mrm_trigger_udp" exec="trigger_udp_sender" name="mrm_trigger_udp_sender" output="screen">
+      <param name="autobox_ip" value="$(var autobox_ip)"/>
+      <param name="port" value="44455"/>
+    </node>
+  </group>
 
   <!-- MRM core -->
   <include file="$(find-pkg-share mrm_launch)/launch/mrm_core.launch.xml">
