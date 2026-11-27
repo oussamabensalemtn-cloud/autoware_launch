@@ -18,6 +18,7 @@
   <arg name="vehicle_model" default="sample_vehicle" description="vehicle model name (as in autoware.launch.xml)"/>
   <arg name="autobox_ip" default="10.0.10.20" description="MicroAutoBox IP for trajectory, status and trigger (127.0.0.1 = dry run)"/>
   <arg name="trigger_port" default="44455" description="UDP port of the MRM trigger at the MicroAutoBox"/>
+  <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/mrm.rviz" description="Autoware's RViz config plus /mrm/trajectory (magenta, display MRMTrajectory)"/>
   <arg name="nominal_domain" default="0" description="ROS_DOMAIN_ID of the nominal AD system"/>
 
   <let name="mrm_domain" value="$(env ROS_DOMAIN_ID 0)"/>
@@ -51,6 +52,7 @@
       <arg name="enable_all_modules_auto_mode" value="true"/>
       <arg name="rviz_emergency_service" value="/mrm/set_emergency"/>
       <arg name="rviz_emergency_topic" value="/mrm/emergency_state"/>
+      <arg name="rviz_config" value="$(var rviz_config)"/>
     </include>
   </group>
 </launch>

@@ -8,7 +8,8 @@
   <arg name="vehicle_model" default="sample_vehicle"/>
   <arg name="sensor_model" default="sample_sensor_kit"/>
   <arg name="rviz" default="true"/>
-  <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/autoware.rviz"/>
+  <!-- Autoware's RViz config plus /mrm/trajectory (magenta, display "MRMTrajectory") -->
+  <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/mrm.rviz"/>
   <arg name="cruise_speed" default="8.0" description="fake nominal cruise speed [m/s]"/>
   <arg name="nominal_lateral_offset" default="0.0" description="fake nominal drives this far left of the lane center [m]"/>
   <arg name="nominal_lateral_offset_profile" default=""
