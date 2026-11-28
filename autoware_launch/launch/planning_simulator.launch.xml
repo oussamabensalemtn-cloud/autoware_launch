@@ -40,6 +40,7 @@
   <arg name="rviz" default="true" description="launch rviz"/>
   <arg name="rviz_config_name" default="autoware.rviz" description="rviz config name"/>
   <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/$(var rviz_config_name)" description="rviz config path"/>
+  <arg name="rviz_fullscreen" default="true" description="RViz fills the screen (never larger than it); F11 toggles"/>
   <arg name="rviz_emergency_service" default="/api/autoware/set/emergency" description="service called by RViz's Set Emergency button"/>
   <arg name="rviz_emergency_topic" default="/api/autoware/get/emergency" description="emergency state shown on RViz's Set Emergency button"/>
   <let name="rviz_respawn" value="false" if="$(var scenario_simulation)"/>
@@ -90,6 +91,7 @@
       <arg name="rviz" value="$(var rviz)"/>
       <arg name="rviz_config" value="$(var rviz_config)"/>
       <arg name="rviz_respawn" value="$(var rviz_respawn)"/>
+      <arg name="rviz_fullscreen" value="$(var rviz_fullscreen)"/>
       <arg name="rviz_emergency_service" value="$(var rviz_emergency_service)"/>
       <arg name="rviz_emergency_topic" value="$(var rviz_emergency_topic)"/>
       <!-- Auto mode setting-->
