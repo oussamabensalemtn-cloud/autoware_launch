@@ -19,6 +19,9 @@
     <param name="resample_ds" value="0.2"/>
     <param name="smoothing_length_m" value="8.0"/>
     <param name="max_deviation_m" value="0.10"/>
+    <!-- the UDP window reaches at most 24 m ahead (24 points, <= 1 m apart); Autoware's trajectory starts a few m
+         behind the car. 60 m leaves room for both up to 50 km/h -->
+    <param name="max_output_length_m" value="60.0"/>
   </node>
 
   <!-- smoothed trajectory -> 31-point UDP packet (format version 3) for the Autobox (44444),
@@ -30,9 +33,14 @@
     <param name="local_port" value="0"/>
     <param name="n_behind" value="6"/>
     <param name="behind_spacing_m" value="0.5"/>
-    <param name="min_spacing_m" value="0.3"/>
-    <param name="max_spacing_m" value="3.0"/>
-    <param name="min_horizon" value="3.0"/>
+    <!-- points ahead: the heading changes <= max_heading_step_deg and the time <= max_time_step_s between two points,
+         spacing within [min_spacing_m, max_spacing_m]. The MABX interpolates linearly on s and t, so corners get
+         < 0.3 m (R = 30 m: 0.29 m, R <= 26 m: 0.25 m), straights 1 m (R >= 105 m). min_horizon: warning only -->
+    <param name="min_spacing_m" value="0.25"/>
+    <param name="max_spacing_m" value="1.0"/>
+    <param name="max_heading_step_deg" value="0.55"/>
+    <param name="max_time_step_s" value="0.2"/>
+    <param name="min_horizon" value="1.0"/>
     <param name="status_port" value="$(var autobox_status_port)"/>
     <param name="status_rate_hz" value="50.0"/>
     <param name="trajectory_source" value="$(var trajectory_source)"/>
