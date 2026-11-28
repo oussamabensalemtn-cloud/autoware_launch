@@ -8,6 +8,7 @@ import math
 import socket
 import struct
 import sys
+import time
 
 import numpy as np
 
@@ -121,12 +122,35 @@ def project_ego(f, ex, ey, eyaw, max_heading_diff=math.radians(60.0)):
     return float(s[i] + u[i] * (s[i + 1] - s[i])), math.sqrt(float(d2[i]))
 
 
-def choose_spacing(f, s_ego, n_intervals, min_spacing, max_spacing, horizon):
-    """Smallest spacing >= min_spacing whose points ahead reach 'horizon' seconds of the planned motion."""
-    t_ego = float(np.interp(s_ego, f["s"], f["t"]))
-    s_horizon = float(np.interp(t_ego + horizon, f["t"], f["s"]))
-    spacing = min(max((s_horizon - s_ego) / n_intervals, min_spacing), max_spacing)
-    return round(spacing, 3)  # whole mm, matches spacing_mm in the header
+def allowed_spacing(f, min_spacing, max_spacing, max_heading_step, max_time_step):
+    """Spacing allowed at each trajectory sample: the heading changes at most max_heading_step [rad] and the time at
+    most max_time_step [s] between two points, within [min_spacing, max_spacing]. The MABX interpolates linearly, so
+    corners get dense points and straights sparse ones. The curvature is the largest within max_spacing ahead of the
+    sample, so the spacing shrinks before a corner starts, not inside it."""
+    s, kappa = f["s"], np.abs(f["kappa"])
+    end = np.searchsorted(s, s + max_spacing, side="right")
+    kmax = np.array([kappa[i:max(e, i + 1)].max() for i, e in enumerate(end)])  # windows of ~max_spacing / 0.2 m
+    by_heading = max_heading_step / np.maximum(kmax, 1e-9)
+    by_time = np.maximum(np.abs(f["v"]), 1e-3) * max_time_step
+    return np.clip(np.minimum(by_heading, by_time), min_spacing, max_spacing)
+
+
+def ahead_targets(f, s_ego, n_ahead, allowed):
+    """Arc lengths of the car's point and the points ahead (at most n_ahead in total). Each step is the smallest
+    allowed spacing between the point and the next max step, and the trajectory end is always a point if it fits."""
+    s = f["s"]
+    s_end = s[-1]
+    max_step = float(allowed.max())
+    out = [s_ego]
+    while len(out) < n_ahead:
+        cur = out[-1]
+        if s_end - cur <= 1e-3:
+            break
+        lo = np.searchsorted(s, cur, side="left")
+        hi = max(np.searchsorted(s, cur + max_step, side="right"), lo + 1)
+        step = float(min(np.interp(cur, s, allowed), allowed[lo:hi].min()))
+        out.append(min(cur + step, s_end))  # the last step lands on the stop point / goal (MRM-007)
+    return np.asarray(out)
 
 
 def interp_fields(f, targets, v_min):
@@ -146,22 +170,23 @@ def interp_fields(f, targets, v_min):
     return w
 
 
-def sample_window(f, s_ego, spacing, n_max, n_behind, behind_spacing, v_min):
-    """n_behind points behind the car, the car itself (index n_behind), then points every 'spacing' m.
-    s and t are 0 at the first point."""
-    s_end = f["s"][-1]
-    n_ahead = n_max - n_behind  # includes the car's point
+def sample_window(f, s_ego, allowed, n_max, n_behind, behind_spacing, v_min):
+    """n_behind points behind the car every behind_spacing m, the car itself (index n_behind), then points ahead
+    with the spacing 'allowed' (see allowed_spacing). s and t are 0 at the first point."""
     behind = s_ego - behind_spacing * np.arange(n_behind, 0, -1)
-    n_steps = int(math.floor((s_end - s_ego) / spacing + 1e-9))
-    ahead = s_ego + spacing * np.arange(min(n_steps + 1, n_ahead))
-    if len(ahead) < n_ahead and s_end - ahead[-1] > 1e-3:
-        ahead = np.append(ahead, s_end)  # include the trajectory end (stop point / goal)
+    ahead = ahead_targets(f, s_ego, n_max - n_behind, allowed)  # includes the car's point
     targets = np.concatenate((behind, ahead))
 
     w = interp_fields(f, targets, v_min)
     w["t"] = w["t"] - w["t"][0]
     w["s"] = targets - targets[0]
     return w
+
+
+def min_spacing_ahead(w, n_behind):
+    """Smallest spacing ahead of the car (header field spacing_mm, information only: the MABX uses s and t)."""
+    d = np.diff(w["s"][n_behind:])
+    return round(float(d.min()), 3) if d.size else 0.0
 
 
 def pack(w, n_max, spacing, seq, stamp_sec, stamp_nanosec, big_endian=False):
@@ -208,30 +233,55 @@ def selftest(out_path=None, status_path=None):
     check("projection", abs(s_ego - 10.07) < 1e-9 and abs(offset - 0.3) < 1e-9,
           f"s_ego {s_ego:.4f} m, offset {offset:.3f} m")
 
-    sp = choose_spacing(f, s_ego, n_max - nb - 1, 0.3, 3.0, 3.0)
-    w = sample_window(f, s_ego, sp, n_max, nb, bs, v_min)
-    check("window around the car",
-          sp == 1.25 and len(w["t"]) == n_max and w["s"][0] == 0.0 and w["t"][0] == 0.0
+    def const(sp):
+        return np.full(s.size, sp)
+
+    heading_step, time_step = math.radians(0.55), 0.2
+    w = sample_window(f, s_ego, allowed_spacing(f, 0.25, 1.0, heading_step, time_step), n_max, nb, bs, v_min)
+    sp = min_spacing_ahead(w, nb)
+    check("straight, 10 m/s: 1 m ahead",
+          sp == 1.0 and len(w["t"]) == n_max and w["s"][0] == 0.0 and w["t"][0] == 0.0
           and np.allclose(w["s"][:nb + 1], bs * np.arange(nb + 1))
           and np.allclose(w["s"][nb:], nb * bs + sp * np.arange(n_max - nb))
           and np.allclose(w["t"][:nb + 1], 0.05 * np.arange(nb + 1))
-          and abs(w["t"][-1] - w["t"][nb] - 3.0) < 1e-9 and abs(w["x"][nb] - 10.07) < 1e-9,
+          and abs(w["t"][-1] - w["t"][nb] - 2.4) < 1e-9 and abs(w["x"][nb] - 10.07) < 1e-9,
           f"spacing {sp} m, car at s {w['s'][nb]:.2f} m / t {w['t'][nb]:.2f} s, "
           f"horizon {w['t'][-1] - w['t'][nb]:.2f} s")
 
-    slow, fast = dict(f), dict(f)
-    slow["t"], fast["t"] = s / 1.0, s / 20.0
-    sp_slow = choose_spacing(slow, s_ego, n_max - nb - 1, 0.3, 3.0, 3.0)
-    sp_capped = choose_spacing(fast, s_ego, n_max - nb - 1, 0.3, 1.5, 3.0)
-    check("spacing limits", sp_slow == 0.3 and sp_capped == 1.5,
-          f"1 m/s: {sp_slow} m, 20 m/s capped: {sp_capped} m")
+    slow = dict(f)
+    slow["t"], slow["v"] = s / 1.0, np.full_like(s, 1.0)
+    ws = sample_window(slow, s_ego, allowed_spacing(slow, 0.25, 1.0, heading_step, time_step), n_max, nb, bs, v_min)
+    d_slow = np.diff(ws["s"][nb:])
+    check("1 m/s: floor 0.25 m (0.25 s)", np.allclose(d_slow, 0.25) and np.allclose(np.diff(ws["t"][nb:]), 0.25),
+          f"spacing {d_slow.min():.3f}-{d_slow.max():.3f} m")
+
+    # 30 m straight, then a left turn with R = 20 m (kappa 0.05), 8.3 m/s (30 km/h)
+    s_c = np.arange(0.0, 70.0 + 1e-9, 0.2)
+    ang = np.clip(s_c - 30.0, 0.0, None) / 20.0
+    xc = np.where(s_c < 30.0, s_c, 30.0 + 20.0 * np.sin(ang))
+    yc = np.where(s_c < 30.0, 0.0, 20.0 - 20.0 * np.cos(ang))
+    fc = {"t": s_c / 8.3, "x": xc, "y": yc, "yaw": ang.copy(), "v": np.full_like(s_c, 8.3),
+          "a": np.zeros_like(s_c), "s": s_c, "kappa": np.where(s_c < 30.0, 0.0, 0.05)}
+    wc = sample_window(fc, project_ego(fc, 25.0, 0.0, 0.0)[0], allowed_spacing(fc, 0.25, 1.0, heading_step, time_step),
+                       n_max, nb, bs, v_min)
+    sa, d = wc["s"][nb:] + 25.0 - wc["s"][nb], np.diff(wc["s"][nb:])
+    in_arc = sa[1:] > 30.0
+    dyaw = np.abs(np.diff(np.unwrap(wc["yaw"][nb:])))
+    check("corner R=20: < 0.3 m, straight 1 m",
+          np.all(d[in_arc] < 0.3) and np.all(dyaw <= max(heading_step, 0.05 * 0.25) + 1e-6) and d[0] == 1.0 and in_arc.sum() > 5
+          and np.all(np.diff(wc["s"]) > 0) and np.all(np.diff(wc["t"]) > 0),
+          f"straight {d[0]:.2f} m, corner {d[in_arc].min():.3f}-{d[in_arc].max():.3f} m, "
+          f"max heading step {math.degrees(dyaw.max()):.2f} deg, {in_arc.sum()} steps in the corner, "
+          f"horizon {wc['t'][-1] - wc['t'][nb]:.2f} s")
 
     s_start, _ = project_ego(f, 1.0, 0.0, 0.0)
-    w0 = sample_window(f, s_start, 1.0, n_max, nb, bs, v_min)
+    w0 = sample_window(f, s_start, const(1.0), n_max, nb, bs, v_min)
     check("extrapolated behind start",
           abs(w0["x"][0] + 2.0) < 1e-9 and np.all(np.diff(w0["s"]) > 0) and np.all(np.diff(w0["t"]) > 0)
           and abs(w0["t"][nb] - 0.3) < 1e-9, f"first point x {w0['x'][0]:.2f} m (expected -2.00)")
 
+    w = sample_window(f, s_ego, const(1.25), n_max, nb, bs, v_min)
+    sp = min_spacing_ahead(w, nb)
     for big in (False, True):
         packet = pack(w, n_max, sp, 7, 123, 456, big)
         header, data = unpack(packet, n_max, big)
@@ -242,18 +292,29 @@ def selftest(out_path=None, status_path=None):
               f"{len(packet)} bytes")
 
     s_end, _ = project_ego(f, 95.0, 0.0, 0.0)
-    header, data = unpack(pack(sample_window(f, s_end, 1.0, n_max, nb, bs, v_min), n_max, 1.0, 0, 0, 0), n_max)
+    header, data = unpack(pack(sample_window(f, s_end, const(1.0), n_max, nb, bs, v_min), n_max, 1.0, 0, 0, 0), n_max)
     check("trajectory end + padding", header[3] == 12 and np.all(data[:, 12:] == data[:, 11:12]),
           f"n_valid {header[3]} (expected 12)")
 
+    w_odd = sample_window(f, project_ego(f, 95.3, 0.0, 0.0)[0], const(1.0), n_max, nb, bs, v_min)
+    check("end point always included", abs(w_odd["x"][-1] - 100.0) < 1e-9 and np.all(np.diff(w_odd["s"]) > 0),
+          f"last x {w_odd['x'][-1]:.2f} m (expected 100.00)")
+
     s_past, _ = project_ego(f, 105.0, 0.0, 0.0)
-    w_past = sample_window(f, s_past, 1.0, n_max, nb, bs, v_min)
+    w_past = sample_window(f, s_past, const(1.0), n_max, nb, bs, v_min)
     check("car past the end", len(w_past["t"]) == nb + 1 and np.all(np.diff(w_past["s"]) > 0),
           f"n_valid {len(w_past['t'])} (expected {nb + 1})")
 
+    th = np.arange(0.0, 6.0, 0.2 / 50.0)
+    big_f = {"x": 50 * np.cos(th), "y": 50 * np.sin(th), "s": 50 * th, "t": 5 * th, "v": np.full_like(th, 10.0),
+             "a": np.zeros_like(th), "kappa": np.full_like(th, 0.02), "yaw": wrap_0_2pi(th + math.pi / 2)}
+    t0 = time.perf_counter()
+    sample_window(big_f, 10.0, allowed_spacing(big_f, 0.25, 1.0, heading_step, time_step), n_max, nb, bs, v_min)
+    print(f"[INFO] sampling {th.size} points took {1e3 * (time.perf_counter() - t0):.1f} ms")
+
     g = dict(f)
     g["yaw"] = wrap_0_2pi(np.linspace(-0.1, 0.1, s.size))
-    wy = sample_window(g, project_ego(g, 45.0, 0.0, 0.0)[0], 1.0, n_max, nb, bs, v_min)["yaw"]
+    wy = sample_window(g, project_ego(g, 45.0, 0.0, 0.0)[0], const(1.0), n_max, nb, bs, v_min)["yaw"]
     check("yaw across 0/2pi", np.all((wy >= 0.0) & (wy < TWO_PI))
           and np.minimum(wy, TWO_PI - wy).max() <= 0.1 + 1e-9,
           f"max distance to 0: {np.minimum(wy, TWO_PI - wy).max():.3f} rad")
@@ -314,9 +375,12 @@ def main():
             self.n_max = int(p("n_max", 31).value)
             self.n_behind = int(p("n_behind", 6).value)
             self.behind_spacing = float(p("behind_spacing_m", 0.5).value)
-            self.min_spacing = float(p("min_spacing_m", 0.3).value)
-            self.max_spacing = float(p("max_spacing_m", 3.0).value)
-            self.min_horizon = float(p("min_horizon", 3.0).value)
+            # spacing ahead: dense in corners, sparse on straights (the MABX interpolates linearly on s and t)
+            self.min_spacing = float(p("min_spacing_m", 0.25).value)
+            self.max_spacing = float(p("max_spacing_m", 1.0).value)
+            self.max_heading_step = math.radians(float(p("max_heading_step_deg", 0.55).value))
+            self.max_time_step = float(p("max_time_step_s", 0.2).value)
+            self.min_horizon = float(p("min_horizon", 1.0).value)  # warning only: the tracker looks < 1 s ahead
             self.v_min = float(p("time_min_velocity", 0.1).value)
             self.max_offset = float(p("max_lateral_offset", 3.0).value)
             self.big_endian = bool(p("big_endian", False).value)
@@ -335,6 +399,8 @@ def main():
                 raise ValueError("need 1 <= n_behind <= n_max - 3")
             if not 0.0 < self.min_spacing <= self.max_spacing <= 65.535 or self.behind_spacing <= 0.0:
                 raise ValueError("need 0 < min_spacing_m <= max_spacing_m <= 65.535 and behind_spacing_m > 0")
+            if self.max_heading_step <= 0.0 or self.max_time_step <= 0.0:
+                raise ValueError("max_heading_step_deg and max_time_step_s must be > 0")
             if self.v_min <= 0.0:
                 raise ValueError("time_min_velocity must be > 0")
             self.n_intervals = self.n_max - self.n_behind - 1
@@ -366,8 +432,9 @@ def main():
             self.get_logger().info(
                 f"{in_topic} -> udp://{self.target[0]}:{self.target[1]} from port {self.local_port or 'auto'}, "
                 f"{self.n_max} points: {self.n_behind} behind every {self.behind_spacing} m, car at index "
-                f"{self.n_behind}, {self.n_intervals} ahead every {self.min_spacing}-{self.max_spacing} m "
-                f"for >= {self.min_horizon} s, {size} bytes, {'big' if self.big_endian else 'little'} endian")
+                f"{self.n_behind}, {self.n_intervals} ahead every {self.min_spacing}-{self.max_spacing} m (heading step "
+                f"<= {math.degrees(self.max_heading_step):.2f} deg, time step <= {self.max_time_step} s), {size} bytes, "
+                f"{'big' if self.big_endian else 'little'} endian")
 
         def drain_feedback(self):
             while True:
@@ -398,13 +465,13 @@ def main():
             s_ego, offset = project_ego(f, *self.ego)
             if offset > self.max_offset:
                 self.get_logger().warn(f"car is {offset:.1f} m away from the trajectory", throttle_duration_sec=1.0)
-            spacing = choose_spacing(f, s_ego, self.n_intervals, self.min_spacing, self.max_spacing, self.min_horizon)
-            w = sample_window(f, s_ego, spacing, self.n_max, self.n_behind, self.behind_spacing, self.v_min)
+            allowed = allowed_spacing(f, self.min_spacing, self.max_spacing, self.max_heading_step, self.max_time_step)
+            w = sample_window(f, s_ego, allowed, self.n_max, self.n_behind, self.behind_spacing, self.v_min)
+            spacing = min_spacing_ahead(w, self.n_behind)
             horizon = w["t"][-1] - w["t"][self.n_behind]
             if len(w["t"]) == self.n_max and horizon < self.min_horizon - 1e-3:
                 self.get_logger().warn(
-                    f"points ahead cover only {horizon:.1f} s (spacing capped at {self.max_spacing} m)",
-                    throttle_duration_sec=2.0)
+                    f"points ahead cover only {horizon:.2f} s (spacing {spacing} m)", throttle_duration_sec=2.0)
 
             packet = pack(w, self.n_max, spacing, self.seq,
                           self.ego_stamp.sec, self.ego_stamp.nanosec, self.big_endian)

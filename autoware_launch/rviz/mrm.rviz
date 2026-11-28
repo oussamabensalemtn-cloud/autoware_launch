@@ -1341,7 +1341,7 @@ Visualization Manager:
             - Class: rviz_plugins/Trajectory
               Color Border Vel Max: 3
               Enabled: true
-              Name: MRMTrajectory
+              Name: "MRM trajectory (orange, sent to the MABX)"
               Topic:
                 Depth: 5
                 Durability Policy: Volatile
@@ -1351,20 +1351,20 @@ Visualization Manager:
               Value: true
               View Path:
                 Alpha: 0.999
-                Color: 255; 0; 255
+                Color: 255; 120; 0
                 Constant Color: true
                 Value: true
-                Width: 0.6
+                Width: 0.8
               View Velocity:
                 Alpha: 0.999
-                Color: 255; 0; 255
+                Color: 255; 120; 0
                 Constant Color: true
                 Scale: 0.30000001192092896
                 Value: true
             - Class: rviz_plugins/Trajectory
               Color Border Vel Max: 3
               Enabled: true
-              Name: ScenarioTrajectory
+              Name: "Autoware plan, hot standby (cyan)"
               Topic:
                 Depth: 5
                 Durability Policy: Volatile
@@ -1373,15 +1373,15 @@ Visualization Manager:
                 Value: /planning/trajectory
               Value: true
               View Path:
-                Alpha: 0.999
-                Color: 0; 0; 0
-                Constant Color: false
+                Alpha: 0.35
+                Color: 0; 200; 255
+                Constant Color: true
                 Value: true
                 Width: 2
               View Velocity:
-                Alpha: 0.999
-                Color: 0; 0; 0
-                Constant Color: false
+                Alpha: 0.35
+                Color: 0; 200; 255
+                Constant Color: true
                 Scale: 0.30000001192092896
                 Value: true
             - Class: rviz_common/Group
@@ -1392,7 +1392,7 @@ Visualization Manager:
                       Displays:
                         - Class: rviz_plugins/Path
                           Color Border Vel Max: 3
-                          Enabled: true
+                          Enabled: false
                           Name: Path
                           Topic:
                             Depth: 5
@@ -1400,7 +1400,7 @@ Visualization Manager:
                             History Policy: Keep Last
                             Reliability Policy: Reliable
                             Value: /planning/scenario_planning/lane_driving/behavior_planning/path
-                          Value: true
+                          Value: false
                           View Path:
                             Alpha: 0.4000000059604645
                             Color: 0; 0; 0
@@ -4346,7 +4346,7 @@ Window Geometry:
     collapsed: false
   Displays:
     collapsed: false
-  Height: 1565
+  Height: 1000
   Hide Left Dock: false
   Hide Right Dock: false
   Image:
@@ -4360,6 +4360,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 2813
-  X: 67
-  Y: 27
+  Width: 1800
+  X: 0
+  Y: 0

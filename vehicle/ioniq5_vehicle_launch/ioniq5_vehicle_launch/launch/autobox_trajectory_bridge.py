@@ -73,6 +73,10 @@ def process(x, y, yaw_planner, v, a, ds, smoothing_length, max_deviation, v_min,
     x, y, yaw_planner, v, a = x[:n], y[:n], yaw_planner[:n], v[:n], a[:n]
 
     s = arc_length(x, y)
+    # only smooth what is sent: the output ends at max_length, the smoother's end effects stay within two
+    # smoothing lengths of the cut
+    n = int(np.searchsorted(s, max_length + 2.0 * smoothing_length, side="right")) + 1
+    s, x, y, yaw_planner, v, a = s[:n], x[:n], y[:n], yaw_planner[:n], v[:n], a[:n]
     last = np.concatenate((np.diff(s) > MIN_SEGMENT, [True]))  # last point of each group of repeated points
     s, x, y, yaw_planner, v, a = s[last] - s[last][0], x[last], y[last], yaw_planner[last], v[last], a[last]
     if len(s) < 2:

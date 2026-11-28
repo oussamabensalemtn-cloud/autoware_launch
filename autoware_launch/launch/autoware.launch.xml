@@ -45,6 +45,8 @@
   <arg name="rviz_config_name" default="autoware.rviz" description="rviz config name"/>
   <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/$(var rviz_config_name)" description="rviz config path"/>
   <arg name="rviz_respawn" default="true"/>
+  <arg name="rviz_fullscreen" default="true" description="RViz fills the screen (never larger than it); F11 toggles"/>
+  <let name="rviz_fullscreen_flag" value="$(eval &quot;'--fullscreen' if '$(var rviz_fullscreen)'.lower() == 'true' else ''&quot;)"/>
   <!-- the "Set Emergency" button of the state panel; the MRM stacks point it to their MRM trigger (/mrm/set_emergency, /mrm/emergency_state) -->
   <arg name="rviz_emergency_service" default="/api/autoware/set/emergency" description="service called by RViz's Set Emergency button"/>
   <arg name="rviz_emergency_topic" default="/api/autoware/get/emergency" description="emergency state shown on RViz's Set Emergency button"/>
@@ -166,7 +168,7 @@
       exec="rviz2"
       name="rviz2"
       output="screen"
-      args="-d $(var rviz_config) -s $(find-pkg-share autoware_launch)/rviz/image/autoware.png"
+      args="-d $(var rviz_config) -s $(find-pkg-share autoware_launch)/rviz/image/autoware.png $(var rviz_fullscreen_flag)"
       if="$(var rviz)"
       respawn="$(var rviz_respawn)"
     >
